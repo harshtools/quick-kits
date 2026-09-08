@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Customer Desk</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0A0A0C;
+    --panel: #111114;
+    --panel-2: #08080A;
+    --border: rgba(255,255,255,0.10);
+    --border-soft: rgba(255,255,255,0.06);
+    --text: #F5F4F0;
+    --muted: #9B9995;
+    --accent: #3B82F6;
+    --accent-soft: rgba(59,130,246,0.14);
+    --glow: #60A5FA;
+  }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); background-clip: padding-box; }
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+  body {
+    padding: 40px 18px;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 20% 0%, rgba(96,165,250,0.05), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 40%, rgba(59,130,246,0.05), transparent 60%),
+      radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: auto, auto, 26px 26px;
+    background-position: 0 0, 0 0, 0 0;
+  }
+
+  .frame {
+    position: relative;
+    width: 100%;
+    max-width: 1440px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    border-radius: 22px;
+    border: 1px solid rgba(96,165,250,0.25);
+    overflow: hidden;
+    background: linear-gradient(180deg, #0B111F 0%, #060A12 100%);
+    box-shadow:
+      0 40px 80px -20px rgba(59,130,246,0.35),
+      0 0 0 1px rgba(96,165,250,0.05) inset;
+  }
+  .hero-glow {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(55% 50% at 50% 20%, rgba(96,165,250,0.28), transparent 65%),
+      radial-gradient(70% 45% at 50% 100%, rgba(59,130,246,0.55), transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(147,197,253,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(147,197,253,0.08) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(65% 65% at 50% 35%, #000 40%, transparent 85%);
+    mask-image: radial-gradient(65% 65% at 50% 35%, #000 40%, transparent 85%);
+    pointer-events: none;
+  }
+  .hero-edge-glow {
+    position: absolute; left: 8%; right: 8%; bottom: -6px; height: 14px;
+    background: var(--glow);
+    filter: blur(20px);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .hero-inner { position: relative; padding: 26px 28px 34px; }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 40px; }
+  .brand-block { display: flex; flex-direction: column; gap: 4px; }
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .status-label { font-size: 12.5px; color: var(--muted); }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; font-size: 13px; border-radius: 999px;
+    border: 1px solid rgba(147,197,253,0.2); background: rgba(96,165,250,0.08);
+    color: var(--text); cursor: pointer; font-family: inherit;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .pill-btn:hover { background: rgba(96,165,250,0.16); border-color: rgba(147,197,253,0.4); transform: translateY(-1px); }
+  .hero-title { font-size: clamp(24px, 3.4vw, 32px); font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-shadow: 0 0 30px rgba(96,165,250,0.25); }
+
+  /* ---------- Floating action buttons ---------- */
+  .fab-stack { position: fixed; right: 22px; bottom: 22px; display: flex; flex-direction: column; gap: 10px; z-index: 40; }
+  .fab {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: rgba(20,24,34,0.9); border: 1px solid rgba(147,197,253,0.18);
+    color: var(--text); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; backdrop-filter: blur(6px);
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .fab:hover { background: rgba(59,130,246,0.18); border-color: rgba(147,197,253,0.4); transform: translateY(-2px); }
+
+  /* ---------- Content sections ---------- */
+  .content { margin-top: 18px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .panel:hover { border-color: rgba(255,255,255,0.16); }
+  #nameTable input.name-fix-input {
+    width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 9px; color: var(--text); font: inherit; font-size: 13px;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  #nameTable input.name-fix-input:hover { border-color: rgba(255,255,255,0.24); }
+  #nameTable input.name-fix-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: rgba(255,255,255,0.05); }
+  #nameBodyRows tr { transition: background .12s ease; }
+  #nameBodyRows tr:hover { background: rgba(59,130,246,0.06); }
+
+  .settings-panel { display: none; }
+  .settings-panel.open { display: block; }
+  .settings-label { font-size: 12px; font-weight: 600; margin-bottom: 10px; color: var(--muted); letter-spacing: 0.01em; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent-soft); color: var(--text);
+    padding: 5px 9px; border-radius: 6px; font-size: 12.5px;
+  }
+  .tag svg { cursor: pointer; color: var(--muted); transition: color .15s ease; }
+  .tag svg:hover { color: var(--accent); }
+  .add-col-hint { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .add-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--border); padding: 5px 9px; border-radius: 6px;
+    font-size: 12.5px; cursor: pointer; color: var(--muted);
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .add-tag:hover { border-color: var(--accent); color: var(--text); background: rgba(255,255,255,0.03); }
+
+  /* ---------- Dropzone ---------- */
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 14px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255,255,255,0.02);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: border-color .2s ease, background .2s ease, transform .2s ease;
+  }
+  .dropzone:hover { border-color: var(--accent); background: rgba(255,255,255,0.035); transform: translateY(-1px); }
+  .dropzone svg { color: var(--accent); margin-bottom: 12px; }
+  .dropzone-title { font-size: 16px; font-weight: 600; }
+  .dropzone-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .selected-row { display: none; align-items: center; gap: 12px; padding: 4px 2px; }
+  .selected-row.show { display: flex; }
+  .selected-name { font-size: 13.5px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; font-size: 13.5px; font-weight: 600; border-radius: 8px;
+    border: none; background: var(--accent); color: #1a0a0c; cursor: pointer;
+    font-family: inherit; transition: filter .15s ease, transform .15s ease;
+  }
+  .run-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .clear-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .clear-btn:hover { border-color: rgba(255,255,255,0.3); color: var(--text); }
+
+  .progress-track {
+    display: none;
+    height: 3px; width: 100%; background: rgba(255,255,255,0.08);
+    border-radius: 3px; overflow: hidden; margin-top: 14px;
+  }
+  .progress-track.show { display: block; }
+  .progress-fill {
+    height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #FDE047);
+    border-radius: 3px; transition: width .35s ease;
+  }
+  .progress-label { font-size: 12px; color: var(--muted); margin-top: 8px; display: none; }
+  .progress-label.show { display: block; }
+
+  .error-box { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #FCA5A5; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; margin-top: 14px; display: none; }
+  .error-box.show { display: block; }
+
+  #resultSection, #nameBox { animation: fadeSlideIn .35s ease; }
+
+  /* ---------- Results ---------- */
+  .result-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13.5px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .result-bar .spacer { flex: 1; min-width: 8px; }
+  .result-bar strong { color: var(--text); }
+  #resultSummary { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .result-bar .btn { white-space: nowrap; flex-shrink: 0; }
+  .search-wrap { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; color: var(--muted); width: 190px; flex-shrink: 1; min-width: 90px; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+  .search-wrap:hover { border-color: rgba(255,255,255,0.22); }
+  .search-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: rgba(255,255,255,0.045); }
+  .search-wrap svg { color: var(--muted); transition: color .18s ease; flex-shrink: 0; }
+  .search-wrap:focus-within svg { color: var(--accent); }
+  .search-wrap input { background: transparent; border: none; outline: none; color: var(--text); font: inherit; font-size: 13px; flex: 1; min-width: 0; }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-wrap #searchClear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; border-radius: 4px; transition: color .15s ease, background .15s ease, transform .15s ease; }
+  .search-wrap #searchClear:hover { color: var(--text); background: rgba(255,255,255,0.08); transform: scale(1.1); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px;
+    border-radius: 8px; cursor: pointer; font-family: inherit;
+    transition: filter .15s ease, background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #1a0a0c; border: none; font-weight: 600; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.03); }
+
+  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; max-height: 480px; }
+  table { border-collapse: collapse; font-size: 13px; table-layout: fixed; width: 100%; }
+  col { min-width: 120px; }
+  th {
+    text-align: left; padding: 11px 12px; background: rgba(255,255,255,0.04);
+    font-weight: 600; font-size: 11.5px; letter-spacing: 0.01em; color: var(--muted);
+    border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    position: sticky; top: 0; backdrop-filter: blur(4px);
+    transition: background .15s ease;
+  }
+  th.th-sort { cursor: pointer; }
+  th.th-sort:hover { background: rgba(59,130,246,0.11); }
+  th.th-active { background: rgba(59,130,246,0.09); }
+  th.th-active:hover { background: rgba(59,130,246,0.15); }
+  th .th-inner { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+  th .copy-wrap {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 6px;
+    transition: background .15s ease, transform .15s ease; flex-shrink: 0; cursor: pointer;
+  }
+  th .copy-wrap:hover { background: var(--accent-soft); }
+  th .copy-wrap svg { color: var(--muted); transition: color .15s ease; }
+  th .copy-wrap:hover svg { color: var(--accent); }
+  th .copy-wrap.copied { transform: scale(1.15); }
+  td {
+    padding: 9px 12px; border-top: 1px solid var(--border-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);
+  }
+  tbody tr:nth-child(odd) { background: rgba(255,255,255,0.015); }
+  tbody tr { transition: background .12s ease; }
+  tbody tr:hover { background: rgba(59,130,246,0.07); }
+  tbody tr.row-flag { background: rgba(239,68,68,0.16); }
+  tbody tr.row-flag:hover { background: rgba(239,68,68,0.26); }
+  tbody tr.row-flag td:first-child { box-shadow: inset 3px 0 0 #EF4444; }
+
+  .row-note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #1a0a0c; padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+
+  <div class="frame">
+
+    <div class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-grid"></div>
+      <div class="hero-inner">
+        <div class="hero-top">
+          <div class="brand-block">
+            <div class="brand">Customer Desk</div>
+            <div class="status-label" id="statusLabel">No file processed yet</div>
+          </div>
+          <button class="pill-btn" id="editRuleBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span id="editRuleLabel">Edit rule</span>
+          </button>
+        </div>
+        <h1 class="hero-title">Every order, one clean sheet.</h1>
+      </div>
+      <div class="hero-edge-glow"></div>
+    </div>
+
+    <div class="content">
+
+      <div class="panel settings-panel" id="settingsPanel">
+        <div class="settings-label">COLUMNS TO KEEP (applied automatically to every upload)</div>
+        <div class="tag-row" id="keepTags"></div>
+        <div id="addColSection" style="display:none;">
+          <div class="add-col-hint">Add another column from the last uploaded file:</div>
+          <div class="tag-row" id="addTags"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="dropzone" id="dropzone">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div class="dropzone-title">Drop your export here</div>
+          <div class="dropzone-sub">.xlsx, .xls, or .csv</div>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" />
+        </div>
+
+        <div class="selected-row" id="selectedRow" style="margin-top:14px;">
+          <span class="selected-name" id="selectedName"></span>
+          <button class="clear-btn" id="clearBtn">Clear</button>
+          <button class="run-btn" id="runBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run
+          </button>
+        </div>
+
+        <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">Processing your file…</div>
+
+        <div class="error-box" id="errorBox"></div>
+      </div>
+
+      <div class="panel" id="nameBox" style="display:none;">
+        <div class="settings-label">UNUSUAL NAMES — edit here to fix them in the sheet</div>
+        <div class="table-wrap" style="max-height:320px;">
+          <table id="nameTable">
+            <colgroup><col style="width:35%"><col style="width:65%"></colgroup>
+            <thead><tr><th><span class="th-inner">Order Id</span></th><th><span class="th-inner">Name</span></th></tr></thead>
+            <tbody id="nameBodyRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="resultSection" style="display:none;">
+        <div class="result-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <div id="resultSummary"></div>
+          <div class="spacer"></div>
+          <div class="search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchBox" placeholder="Search…" autocomplete="off">
+            <button id="searchClear" title="Clear" style="display:none;">&times;</button>
+          </div>
+          <button class="btn btn-ghost" id="resetBtn">Upload another</button>
+          <button class="btn btn-primary" id="exportXlsxBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export .xlsx
+          </button>
+          <button class="btn btn-ghost" id="exportCsvBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            .csv
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <colgroup id="colgroup"></colgroup>
+            <thead><tr id="headRow"></tr></thead>
+            <tbody id="bodyRows"></tbody>
+          </table>
+        </div>
+        <div class="row-note" id="rowNote" style="display:none;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="fab-stack">
+    <button class="fab" id="scrollTopFab" title="Back to top">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+    </button>
+    <button class="fab" id="resetFab" title="Start over">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const RENAME_MAP = {
+    "Name": "Order Id", "Email": "Email", "Total": "Selling Price", "Created at": "Date",
+    "Lineitem sku": "SKU", "Lineitem quantity": "Quantity", "Billing Name": "Name", "Billing City": "City",
+    "Billing Zip": "Pincode", "Billing Province": "State", "Billing Phone": "Mobile No.",
+  };
+  const OUTPUT_ORDER = ["Order Id","Date","Name","Mobile No.","SKU","Selling Price","Email","Pincode","City","State"];
+  const DEFAULT_KEEP = ["Name","Email","Total","Created at","Lineitem sku","Lineitem quantity","Billing Name","Billing City","Billing Zip","Billing Province","Billing Phone"];
+
+  let keepColumns = [...DEFAULT_KEEP];
+  let allColumns = [];
+  let resultRows = null;
+  let fileName = "";
+  let pendingFile = null;
+  const DEFAULT_SORT_KEYS = ["Order Id"];
+  let sortKeys = [...DEFAULT_SORT_KEYS];
+  let sortCol = "Order Id";
+  let sortDir = "asc";
+
+  function naturalCompare(a, b) {
+    const as = String(a ?? ""), bs = String(b ?? "");
+    const an = parseFloat(as), bn = parseFloat(bs);
+    const aIsNum = as.trim() !== "" && !isNaN(an) && /^-?\d+(\.\d+)?$/.test(as.trim());
+    const bIsNum = bs.trim() !== "" && !isNaN(bn) && /^-?\d+(\.\d+)?$/.test(bs.trim());
+    if (aIsNum && bIsNum) return an - bn;
+    return as.localeCompare(bs, undefined, { numeric: true, sensitivity: "base" });
+  }
+
+  function sortRows() {
+    if (!resultRows) return;
+    const keys = sortKeys && sortKeys.length ? sortKeys.filter((k) => resultRows.columns.includes(k)) : (sortCol ? [sortCol] : []);
+    if (!keys.length) return;
+    const dir = sortDir === "asc" ? 1 : -1;
+    resultRows.rows.sort((a, b) => {
+      for (const k of keys) {
+        const cmp = naturalCompare(a[k], b[k]);
+        if (cmp !== 0) return dir * cmp;
+      }
+      return 0;
+    });
+  }
+
+  function toDateOnly(value) {
+    if (value === "" || value === undefined || value === null) return value;
+    const str = String(value).trim();
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) { const [, y, m, d] = match; return `${d}/${m}/${y}`; }
+    return str;
+  }
+
+  function isWeirdName(name) {
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) return true;
+    if (/^[.\-_\s]+$/.test(trimmed)) return true;                     // only dots/dashes/underscores
+    if (/^[.\-]{2,}/.test(trimmed)) return true;                      // junk symbols stuck in front, e.g. "--mohd jameel"
+    if (/^([A-Za-z])\1{2,}$/.test(trimmed.replace(/\s+/g, ""))) return true; // same letter repeated, e.g. "aaaa"
+    if (/[^\x00-\x7F]/.test(trimmed)) return true;                    // non-Latin script, e.g. Hindi
+    return false;
+  }
+
+  function groupByOrderId(rows) {
+    function qtyFor(row) {
+      const n = parseInt(String(row["Quantity"] ?? "").trim(), 10);
+      return (Number.isFinite(n) && n > 0) ? n : 1;
+    }
+    function skusFor(row) {
+      const sku = row["SKU"];
+      if (sku === undefined || sku === "") return [];
+      return Array(qtyFor(row)).fill(sku);
+    }
+    const order = []; const groups = new Map();
+    rows.forEach((row) => {
+      const id = row["Order Id"];
+      if (!groups.has(id)) {
+        const g = { ...row };
+        g["SKU"] = skusFor(row);
+        groups.set(id, g); order.push(id);
+      } else {
+        const g = groups.get(id);
+        const newSkus = skusFor(row);
+        if (newSkus.length) {
+          const existing = Array.isArray(g["SKU"]) ? g["SKU"] : (g["SKU"] !== undefined && g["SKU"] !== "" ? [g["SKU"]] : []);
+          g["SKU"] = [...existing, ...newSkus];
+        }
+        Object.keys(row).forEach((k) => { if (k !== "SKU" && k !== "Quantity" && (!g[k] || g[k] === "") && row[k] !== "") g[k] = row[k]; });
+      }
+    });
+    return order.map((id) => {
+      const g = groups.get(id); const out = { ...g };
+      if (Array.isArray(out["SKU"])) out["SKU"] = out["SKU"].filter((v) => v !== undefined && v !== "").join(", ");
+      delete out["Quantity"];
+      return out;
+    });
+  }
+
+  function forceTextColumns(ws, columns, targetNames) {
+    const colIndexes = columns.map((c, i) => (targetNames.includes(c) ? i : -1)).filter((i) => i !== -1);
+    if (!colIndexes.length) return;
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let r = range.s.r + 1; r <= range.e.r; r++) {
+      colIndexes.forEach((c) => {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[addr];
+        if (cell && cell.v !== undefined && cell.v !== "") { cell.t = 's'; cell.v = String(cell.v); cell.z = '@'; }
+      });
+    }
+  }
+
+  function renderKeepTags() {
+    const wrap = document.getElementById('keepTags');
+    wrap.innerHTML = '';
+    keepColumns.forEach((c) => {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.innerHTML = `${c} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      tag.querySelector('svg').onclick = () => { keepColumns = keepColumns.filter((k) => k !== c); renderKeepTags(); renderAddTags(); };
+      wrap.appendChild(tag);
+    });
+  }
+
+  function renderAddTags() {
+    const section = document.getElementById('addColSection');
+    const wrap = document.getElementById('addTags');
+    wrap.innerHTML = '';
+    const available = allColumns.filter((c) => !keepColumns.includes(c));
+    if (allColumns.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    available.forEach((c) => {
+      const tag = document.createElement('span');
+      tag.className = 'add-tag';
+      tag.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ${c}`;
+      tag.onclick = () => { keepColumns.push(c); renderKeepTags(); renderAddTags(); };
+      wrap.appendChild(tag);
+    });
+  }
+
+  document.getElementById('editRuleBtn').onclick = () => {
+    const panel = document.getElementById('settingsPanel');
+    const open = panel.classList.toggle('open');
+    document.getElementById('editRuleLabel').textContent = open ? 'Hide rule' : 'Edit rule';
+  };
+  renderKeepTags();
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  dropzone.onclick = () => fileInput.click();
+
+  fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    pendingFile = file;
+    document.getElementById('selectedName').textContent = file.name;
+    document.getElementById('selectedRow').classList.add('show');
+    hideError();
+    e.target.value = '';
+  };
+
+  document.getElementById('clearBtn').onclick = () => {
+    pendingFile = null;
+    document.getElementById('selectedRow').classList.remove('show');
+  };
+
+  document.getElementById('runBtn').onclick = () => {
+    if (!pendingFile) return;
+    runProcess(pendingFile);
+  };
+
+  function showError(msg) { const box = document.getElementById('errorBox'); box.textContent = msg; box.classList.add('show'); }
+  function hideError() { document.getElementById('errorBox').classList.remove('show'); }
+
+  function runProcess(file) {
+    hideError();
+    document.getElementById('resultSection').style.display = 'none';
+    const track = document.getElementById('progressTrack');
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    track.classList.add('show');
+    label.classList.add('show');
+    fill.style.width = '0%';
+    requestAnimationFrame(() => { fill.style.width = '70%'; });
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setTimeout(() => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const wb = XLSX.read(data, { type: 'array', raw: true, cellDates: false });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+          if (!json.length) { finishProgress(); showError("This file looks empty."); return; }
+
+          const headerRow = json[0].map((h) => String(h).trim());
+          allColumns = headerRow;
+          renderAddTags();
+
+          const present = keepColumns.filter((c) => headerRow.includes(c));
+          const missing = keepColumns.filter((c) => !headerRow.includes(c));
+
+          const dataRows = json.slice(1).map((r) => {
+            const rowObj = {};
+            headerRow.forEach((h, i) => (rowObj[h] = r[i] === undefined ? "" : r[i]));
+            const filtered = {};
+            present.forEach((c) => (filtered[c] = rowObj[c]));
+            if ("Created at" in filtered) filtered["Created at"] = toDateOnly(filtered["Created at"]);
+            const renamed = {};
+            present.forEach((c) => { renamed[RENAME_MAP[c] || c] = filtered[c]; });
+            return renamed;
+          });
+
+          const displayColumns = OUTPUT_ORDER.filter((c) => present.some((p) => (RENAME_MAP[p] || p) === c));
+          const groupedRows = groupByOrderId(dataRows);
+
+          resultRows = { columns: displayColumns, rows: groupedRows };
+          fileName = file.name.replace(/\.(xlsx|xls|csv)$/i, "");
+
+          const availableDefaultKeys = DEFAULT_SORT_KEYS.filter((k) => displayColumns.includes(k));
+          sortKeys = availableDefaultKeys.length ? availableDefaultKeys : (displayColumns[0] ? [displayColumns[0]] : []);
+          sortCol = sortKeys[0] || null;
+          sortDir = "asc";
+          sortRows();
+
+          finishProgress(() => renderResult(missing));
+        } catch (err) {
+          finishProgress();
+          showError("Couldn't read that file. Try an .xlsx, .xls, or .csv export.");
+        }
+      }, 350);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function finishProgress(cb) {
+    const track = document.getElementById('progressTrack');
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    fill.style.width = '100%';
+    label.textContent = 'Done';
+    setTimeout(() => {
+      track.classList.remove('show');
+      label.classList.remove('show');
+      label.textContent = 'Processing your file…';
+      fill.style.width = '0%';
+      if (cb) cb();
+    }, 450);
+  }
+
+  let currentMissingCols = [];
+  let searchQuery = "";
+  function renderResult(missingCols) {
+    currentMissingCols = missingCols || [];
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('statusLabel').textContent = `Last processed just now — ${fileName || 'file'}`;
+    const summary = document.getElementById('resultSummary');
+
+    const q = searchQuery.trim().toLowerCase();
+    const visibleRows = q
+      ? resultRows.rows.filter((r) => resultRows.columns.some((c) => String(r[c] ?? "").toLowerCase().includes(q)))
+      : resultRows.rows;
+
+    let html = q
+      ? `Found <strong>${visibleRows.length}</strong> of <strong>${resultRows.rows.length} rows</strong> matching "${searchQuery.trim()}"`
+      : `Done — <strong>${resultRows.rows.length} rows</strong>, kept <strong>${resultRows.columns.length} columns</strong>`;
+    if (missingCols.length) html += ` <span style="color:#FDBA74">(missing from this file: ${missingCols.join(', ')})</span>`;
+    if (resultRows.columns.includes('Name')) {
+      const weirdCount = resultRows.rows.filter((r) => isWeirdName(r['Name'])).length;
+      if (weirdCount) html += ` <span style="color:#FCA5A5">— ${weirdCount} unusual name${weirdCount > 1 ? 's' : ''} flagged</span>`;
+    }
+    summary.innerHTML = html;
+
+    const colgroup = document.getElementById('colgroup');
+    const colWidthPct = (100 / resultRows.columns.length).toFixed(3);
+    colgroup.innerHTML = resultRows.columns.map(() => `<col style="width:${colWidthPct}%">`).join('');
+
+    const headRow = document.getElementById('headRow');
+    headRow.innerHTML = '';
+    resultRows.columns.forEach((c) => {
+      const th = document.createElement('th');
+      const sortable = c === 'Order Id';
+      if (sortable) th.classList.add('th-sort');
+      const isActive = c === sortCol;
+      if (isActive) th.classList.add('th-active');
+      const arrow = isActive ? (sortDir === 'asc' ? '▲' : '▼') : '';
+      th.innerHTML = `<span class="th-inner">${c}${arrow ? ` <span style="color:var(--accent);font-size:9px;">${arrow}</span>` : ''}
+        <span class="copy-wrap" data-col="${c}">
+          <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </span>
+      </span>`;
+      const copyWrap = th.querySelector('.copy-wrap');
+      copyWrap.onclick = (e) => { e.stopPropagation(); copyColumn(c, copyWrap); };
+      if (sortable) {
+        th.onclick = () => {
+          sortDir = (sortCol === c && sortDir === 'asc') ? 'desc' : 'asc';
+          sortCol = c;
+          sortKeys = [c];
+          sortRows();
+          renderResult(currentMissingCols);
+        };
+      }
+      headRow.appendChild(th);
+    });
+
+    const body = document.getElementById('bodyRows');
+    body.innerHTML = '';
+    visibleRows.slice(0, 200).forEach((r) => {
+      const tr = document.createElement('tr');
+      if (resultRows.columns.includes('Name') && isWeirdName(r['Name'])) tr.classList.add('row-flag');
+      resultRows.columns.forEach((c) => {
+        const td = document.createElement('td');
+        const val = String(r[c] ?? "");
+        td.textContent = val;
+        td.title = val;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    const note = document.getElementById('rowNote');
+    if (visibleRows.length > 200) {
+      note.style.display = 'block';
+      note.textContent = q
+        ? `Showing first 200 of ${visibleRows.length} matching rows.`
+        : `Showing first 200 of ${visibleRows.length} rows — export to get all of them.`;
+    } else if (q && visibleRows.length === 0) {
+      note.style.display = 'block';
+      note.textContent = `No rows match "${searchQuery.trim()}".`;
+    } else {
+      note.style.display = 'none';
+    }
+
+    document.getElementById('searchClear').style.display = q ? 'inline-block' : 'none';
+
+    renderNameBox();
+  }
+
+  function renderNameBox() {
+    const box = document.getElementById('nameBox');
+    const body = document.getElementById('nameBodyRows');
+    if (!resultRows || !resultRows.columns.includes('Name')) { box.style.display = 'none'; return; }
+    const flagged = resultRows.rows.filter((r) => isWeirdName(r['Name']));
+    if (!flagged.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    body.innerHTML = '';
+    flagged.forEach((r) => {
+      const tr = document.createElement('tr');
+      const tdId = document.createElement('td');
+      tdId.textContent = String(r['Order Id'] ?? '');
+      tdId.title = tdId.textContent;
+
+      const tdName = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = String(r['Name'] ?? '');
+      input.placeholder = 'Enter correct name';
+      input.className = 'name-fix-input';
+      const commit = () => {
+        const val = input.value;
+        if (val !== r['Name']) {
+          r['Name'] = val;
+          renderResult(currentMissingCols);
+        }
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+      tdName.appendChild(input);
+
+      tr.appendChild(tdId);
+      tr.appendChild(tdName);
+      body.appendChild(tr);
+    });
+  }
+
+  function copyColumn(col, wrapEl) {
+    if (!resultRows) return;
+    const values = resultRows.rows.map((r) => String(r[col] ?? "")).join('\n');
+    navigator.clipboard.writeText(values).then(() => {
+      wrapEl.classList.add('copied');
+      const icon = wrapEl.querySelector('svg');
+      icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+      icon.style.color = '#3B82F6';
+      showToast(`Copied "${col}" column`);
+      setTimeout(() => {
+        wrapEl.classList.remove('copied');
+        icon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+        icon.style.color = '';
+      }, 1200);
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  document.getElementById('resetBtn').onclick = () => {
+    resultRows = null; fileName = ""; allColumns = []; pendingFile = null; currentMissingCols = []; searchQuery = "";
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('nameBox').style.display = 'none';
+    document.getElementById('selectedRow').classList.remove('show');
+    document.getElementById('statusLabel').textContent = 'No file processed yet';
+    document.getElementById('searchBox').value = '';
+    document.getElementById('searchClear').style.display = 'none';
+    hideError();
+  };
+
+  document.getElementById('searchBox').addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    if (resultRows) renderResult(currentMissingCols);
+  });
+  document.getElementById('searchClear').onclick = () => {
+    searchQuery = "";
+    document.getElementById('searchBox').value = '';
+    if (resultRows) renderResult(currentMissingCols);
+  };
+
+  document.getElementById('scrollTopFab').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('resetFab').onclick = () => document.getElementById('resetBtn').click();
+
+  document.getElementById('exportXlsxBtn').onclick = () => exportFile('xlsx');
+  document.getElementById('exportCsvBtn').onclick = () => exportFile('csv');
+
+  function exportFile(type) {
+    if (!resultRows) return;
+    const ws = XLSX.utils.json_to_sheet(resultRows.rows, { header: resultRows.columns });
+    forceTextColumns(ws, resultRows.columns, ["Mobile No.", "Pincode"]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const outName = (fileName || "export") + "-filtered";
+    if (type === 'csv') {
+      const csv = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = outName + '.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      XLSX.writeFile(wb, outName + '.xlsx');
+    }
+  }
+</script>
+</body>
+</html>
