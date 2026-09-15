@@ -337,10 +337,9 @@
     .nav-btn span.label{ }
     .sidebar-status span:last-child{ display:none; }
     main{ padding:24px 18px; }
-    .history-table thead{ display:none; }
-    .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
-    .history-table tr{ padding:10px 14px; border-bottom:1px solid var(--border); }
-    .history-table td{ padding:2px 0; border:none; }
+    #historyWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .history-table{ min-width:560px; }
+    .history-table thead th, .history-table tbody td{ padding:9px 12px; font-size:12px; white-space:nowrap; }
   }
 </style>
 </head>
@@ -383,7 +382,7 @@
     <!-- CONFIGURE THIS: paste your Apps Script Web App URL below     -->
     <!-- ============================================================ -->
     <script>
-      const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx3najGmNf-c-ECl2q7_l05JzWEbbcUM973jKRN3PkfD6B558sUg23QneqbBJfAWOIf/exec";
+      const WEBAPP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
     </script>
 
     <div class="config-warning" id="configWarning">
@@ -665,7 +664,7 @@
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 240, height: 140 } },
+      { fps: 10, qrbox: { width: 280, height: 140 } },
       (decodedText) => {
         const now = Date.now();
         if(decodedText === lastCamValue && now - lastCamTime < 1500) return;
