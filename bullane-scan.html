@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bullane Scan</title>
+<style>
+  :root{
+    --bg:#0b0e13;
+    --surface:#12161d;
+    --surface-2:#1a1f27;
+    --surface-3:#212733;
+    --border:#252b35;
+    --text:#e9edf2;
+    --muted:#8792a0;
+    --muted-2:#5c6672;
+
+    --brand:#5b7fd6;
+    --brand-dim:#1a2338;
+
+    --in:#3fa671;
+    --in-dim:#132b1f;
+    --out:#c9604a;
+    --out-dim:#2e1a14;
+    --rto:#c49a4a;
+    --rto-dim:#2c2413;
+    --history:#7c8fb8;
+    --history-dim:#1c2130;
+
+    --green:#4bbd7d;
+    --red:#e0655a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html, body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+  }
+
+  .shell{
+    display:flex;
+    min-height:100vh;
+  }
+
+  /* ---------------- sidebar ---------------- */
+  aside{
+    flex:none;
+    width:232px;
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    padding:22px 16px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:6px 10px 24px;
+  }
+  .brand-mark{
+    width:26px; height:26px;
+    border-radius:7px;
+    background:linear-gradient(135deg, var(--brand), #3a56a0);
+    flex:none;
+  }
+  .brand-name{
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:0.1px;
+  }
+
+  nav{ display:flex; flex-direction:column; gap:2px; }
+  .nav-btn{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 12px;
+    border-radius:9px;
+    color:var(--muted);
+    cursor:pointer;
+    font-size:13.5px;
+    font-weight:600;
+    border-left:2px solid transparent;
+  }
+  .nav-btn svg{ width:18px; height:18px; flex:none; }
+  .nav-btn:hover{ background:var(--surface-2); color:var(--text); }
+  .nav-btn.active-in{ color:var(--in); background:rgba(63,166,113,0.10); }
+  .nav-btn.active-out{ color:var(--out); background:rgba(201,96,74,0.10); }
+  .nav-btn.active-rto{ color:var(--rto); background:rgba(196,154,74,0.10); }
+  .nav-btn.active-history{ color:var(--history); background:rgba(124,143,184,0.10); }
+
+  .nav-divider{
+    height:1px;
+    background:var(--border);
+    margin:12px 10px;
+  }
+
+  .sidebar-status{
+    margin-top:auto;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:10px 12px;
+    font-size:12px;
+    color:var(--muted-2);
+  }
+  .sidebar-status .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--muted-2);
+  }
+  .sidebar-status.online .dot{ background:var(--green); }
+  .sidebar-status.online{ color:var(--muted); }
+
+  /* ---------------- main ---------------- */
+  main{
+    flex:1;
+    min-width:0;
+    padding:36px 40px 40px;
+  }
+  .content-cap{
+    max-width:520px;
+  }
+
+  .page-title{
+    font-size:20px;
+    font-weight:700;
+    margin:0 0 22px;
+  }
+
+  .config-warning{
+    background:#241d0f;
+    border:1px solid #43350f;
+    color:#e3bd6c;
+    font-size:12.5px;
+    padding:13px 15px;
+    border-radius:9px;
+    margin-bottom:20px;
+    line-height:1.55;
+    max-width:640px;
+  }
+  .config-warning code{
+    font-family:var(--mono);
+    background:#1b160a;
+    padding:1px 5px;
+    border-radius:4px;
+  }
+
+  .mode-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 13px;
+    border-radius:999px;
+    font-size:11.5px;
+    font-weight:700;
+    letter-spacing:0.4px;
+    margin-bottom:20px;
+  }
+  .mode-pill .dot{ width:6px; height:6px; border-radius:50%; }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px;
+  }
+  .field-label{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:8px;
+  }
+  .sku-row{ display:flex; gap:10px; }
+  input#skuInput{
+    flex:1;
+    min-width:0;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:15px;
+    padding:13px 14px;
+    border-radius:9px;
+    outline:none;
+  }
+  input#skuInput:focus{ border-color:var(--brand); box-shadow:0 0 0 3px rgba(91,127,214,0.15); }
+  .scan-btn{
+    flex:none;
+    width:48px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:9px;
+    color:var(--muted);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .scan-btn:hover{ color:var(--text); }
+  .scan-btn.active{ border-color:var(--brand); color:var(--brand); }
+
+  #cameraPanel{ margin-top:12px; display:none; }
+  #cameraPanel.open{ display:block; }
+  #reader{ width:100%; border-radius:9px; overflow:hidden; }
+  .cam-status{ font-size:12px; color:var(--muted); margin-top:8px; text-align:center; }
+
+  .qty-label{ font-size:12px; color:var(--muted); margin:18px 0 8px; }
+  .qty-row{ display:flex; align-items:stretch; gap:10px; }
+  .qty-btn{
+    flex:none; width:48px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:9px;
+    color:var(--text);
+    font-size:17px;
+    cursor:pointer;
+  }
+  .qty-btn:hover{ background:var(--surface-3); }
+  .qty-value{
+    flex:1;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono);
+    font-size:16px;
+  }
+
+  .pending-label{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--muted); margin:18px 0 8px;
+  }
+  .pending-label .clear-link{ color:var(--muted-2); text-decoration:underline; cursor:pointer; }
+  .pending-label .clear-link:hover{ color:var(--muted); }
+  .pending-list{ display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; }
+  .pending-empty{ color:var(--muted-2); font-size:12px; padding:10px 0; }
+  .pending-row{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+  }
+  .pending-row .sku{ flex:1; min-width:0; font-family:var(--mono); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pending-row .qty{ flex:none; font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .pending-row .remove-btn{
+    flex:none; width:21px; height:21px; border-radius:50%;
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--muted);
+    cursor:pointer; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pending-row .remove-btn:hover{ border-color:var(--red); color:var(--red); }
+
+  .save-btn{
+    width:100%;
+    margin-top:18px;
+    padding:14px 0;
+    border:none;
+    border-radius:10px;
+    font-weight:700;
+    font-size:13.5px;
+    cursor:pointer;
+    color:#0d0d0f;
+  }
+  .save-btn:hover{ filter:brightness(1.08); }
+  .save-btn:active{ transform:scale(0.99); }
+  .save-btn:disabled{ opacity:0.35; cursor:default; filter:none; }
+
+  /* ---------------- history table ---------------- */
+  .history-toolbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .history-count{ font-size:12.5px; color:var(--muted); }
+
+  .history-table{
+    width:100%;
+    max-width:920px;
+    border-collapse:collapse;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  .history-table thead th{
+    text-align:left;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    color:var(--muted-2);
+    padding:11px 16px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+  }
+  .history-table tbody td{
+    padding:11px 16px;
+    font-size:13px;
+    border-bottom:1px solid var(--border);
+  }
+  .history-table tbody tr:last-child td{ border-bottom:none; }
+  .history-table tbody tr:hover{ background:var(--surface-2); }
+  .history-table .sku-cell{ font-family:var(--mono); }
+  .history-table .time-cell{ color:var(--muted); white-space:nowrap; }
+  .badge{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    padding:3px 8px;
+    border-radius:5px;
+  }
+  .state-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .state-dot.ok{ background:var(--green); }
+  .state-dot.pending{ background:var(--muted-2); }
+  .state-dot.fail{ background:var(--red); }
+  .log-empty{
+    color:var(--muted);
+    font-size:13px;
+    text-align:center;
+    padding:36px 0;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    max-width:920px;
+  }
+
+  @media (max-width: 760px){
+    aside{ width:76px; padding:18px 8px; align-items:center; }
+    .brand{ justify-content:center; padding:4px 0 20px; }
+    .brand-name{ display:none; }
+    .nav-btn{ flex-direction:column; gap:4px; padding:11px 4px; font-size:10px; text-align:center; }
+    .nav-btn span.label{ }
+    .sidebar-status span:last-child{ display:none; }
+    main{ padding:24px 18px; }
+    .history-table thead{ display:none; }
+    .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
+    .history-table tr{ padding:10px 14px; border-bottom:1px solid var(--border); }
+    .history-table td{ padding:2px 0; border:none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside>
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">Bullane Scan</span>
+    </div>
+
+    <nav>
+      <div class="nav-btn" id="navOut" data-mode="OUT">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+        <span class="label">OUT</span>
+      </div>
+      <div class="nav-btn" id="navIn" data-mode="IN">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+        <span class="label">IN</span>
+      </div>
+      <div class="nav-btn" id="navRto" data-mode="RTO">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        <span class="label">RTO</span>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-btn" id="navHistory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span class="label">History</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-status" id="statusEl">
+      <span class="dot"></span><span id="statusText">offline</span>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ============================================================ -->
+    <!-- CONFIGURE THIS: paste your Apps Script Web App URL below     -->
+    <!-- ============================================================ -->
+    <script>
+      const WEBAPP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+    </script>
+
+    <div class="config-warning" id="configWarning">
+      Not connected yet. Open this file in a text editor, find <code>WEBAPP_URL</code> near the top, and paste in the URL from your Apps Script deployment.
+    </div>
+
+    <div id="scanView" class="content-cap">
+      <div class="mode-pill" id="modePill">
+        <span class="dot"></span><span id="modePillText">SCAN RTO</span>
+      </div>
+
+      <div class="card">
+        <div class="field-label">Scan or search SKU</div>
+        <div class="sku-row">
+          <input id="skuInput" type="text" placeholder="e.g. 01SM-M" autocomplete="off" autofocus>
+          <button class="scan-btn" id="scanToggle" title="Scan with camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/>
+              <path d="M4 16v3a1 1 0 0 0 1 1h3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="cameraPanel">
+          <div id="reader"></div>
+          <div class="cam-status" id="camStatus">Point the camera at a barcode</div>
+        </div>
+
+        <div class="qty-label">Quantity</div>
+        <div class="qty-row">
+          <button class="qty-btn" id="qtyMinus">&minus;</button>
+          <div class="qty-value" id="qtyValue">1</div>
+          <button class="qty-btn" id="qtyPlus">+</button>
+        </div>
+
+        <div class="pending-label">
+          <span id="pendingLabelText">Pending (0)</span>
+          <span class="clear-link" id="clearPending">clear</span>
+        </div>
+        <div class="pending-list" id="pendingList">
+          <div class="pending-empty">Scan a few, then save them together.</div>
+        </div>
+
+        <button class="save-btn" id="saveBtn" disabled>Save RTO</button>
+      </div>
+    </div>
+
+    <div id="historyView" style="display:none;">
+      <h1 class="page-title">History</h1>
+      <div class="history-toolbar">
+        <span class="history-count" id="historyCount">0 entries</span>
+      </div>
+      <div id="historyWrap">
+        <div class="log-empty">No entries yet</div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+  const configured = WEBAPP_URL && WEBAPP_URL.indexOf("http") === 0;
+  document.getElementById('configWarning').style.display = configured ? 'none' : 'block';
+
+  const statusEl = document.getElementById('statusEl');
+  const statusText = document.getElementById('statusText');
+  function refreshStatus(){
+    const online = configured && navigator.onLine;
+    statusEl.classList.toggle('online', online);
+    statusText.textContent = online ? 'online' : 'offline';
+  }
+  window.addEventListener('online', refreshStatus);
+  window.addEventListener('offline', refreshStatus);
+  refreshStatus();
+
+  // ---------- mode / view state ----------
+  const MODES = {
+    IN:  { color: 'var(--in)',  dim: 'var(--in-dim)',  navClass: 'active-in'  },
+    OUT: { color: 'var(--out)', dim: 'var(--out-dim)', navClass: 'active-out' },
+    RTO: { color: 'var(--rto)', dim: 'var(--rto-dim)', navClass: 'active-rto' }
+  };
+  let mode = 'RTO';
+  let view = 'SCAN'; // 'SCAN' or 'HISTORY'
+
+  const modePill = document.getElementById('modePill');
+  const modePillText = document.getElementById('modePillText');
+  const saveBtn = document.getElementById('saveBtn');
+  const navOut = document.getElementById('navOut');
+  const navIn = document.getElementById('navIn');
+  const navRto = document.getElementById('navRto');
+  const navHistory = document.getElementById('navHistory');
+  const scanView = document.getElementById('scanView');
+  const historyView = document.getElementById('historyView');
+  const skuInput = document.getElementById('skuInput');
+
+  function applyMode(){
+    const m = MODES[mode];
+    modePillText.textContent = 'SCAN ' + mode;
+    modePill.style.background = m.dim;
+    modePill.style.color = m.color;
+    modePill.querySelector('.dot').style.background = m.color;
+    saveBtn.style.background = m.color;
+    renderPending();
+    if(view === 'SCAN') skuInput.focus();
+  }
+
+  function updateView(){
+    [navOut, navIn, navRto, navHistory].forEach(n => n.classList.remove('active-in','active-out','active-rto','active-history'));
+
+    if(view === 'HISTORY'){
+      scanView.style.display = 'none';
+      historyView.style.display = 'block';
+      navHistory.classList.add('active-history');
+    } else {
+      scanView.style.display = 'block';
+      historyView.style.display = 'none';
+      document.getElementById('nav' + mode[0] + mode.slice(1).toLowerCase()).classList.add(MODES[mode].navClass);
+    }
+  }
+
+  navOut.addEventListener('click', () => { mode = 'OUT'; view = 'SCAN'; applyMode(); updateView(); });
+  navIn.addEventListener('click', () => { mode = 'IN'; view = 'SCAN'; applyMode(); updateView(); });
+  navRto.addEventListener('click', () => { mode = 'RTO'; view = 'SCAN'; applyMode(); updateView(); });
+  navHistory.addEventListener('click', () => { view = 'HISTORY'; updateView(); });
+
+  // ---------- quantity ----------
+  const qtyValue = document.getElementById('qtyValue');
+  let qty = 1;
+  document.getElementById('qtyMinus').addEventListener('click', () => {
+    qty = Math.max(1, qty - 1);
+    qtyValue.textContent = qty;
+  });
+  document.getElementById('qtyPlus').addEventListener('click', () => {
+    qty = qty + 1;
+    qtyValue.textContent = qty;
+  });
+
+  // ---------- pending queue (scanned but not yet saved) ----------
+  const pendingList = document.getElementById('pendingList');
+  const pendingLabelText = document.getElementById('pendingLabelText');
+  const clearPending = document.getElementById('clearPending');
+  const queues = { IN: [], OUT: [], RTO: [] };
+
+  function renderPending(){
+    const q = queues[mode];
+    pendingLabelText.textContent = 'Pending (' + q.length + ')';
+    saveBtn.textContent = 'Save ' + mode + (q.length ? ' (' + q.length + ')' : '');
+    saveBtn.disabled = q.length === 0;
+
+    if(q.length === 0){
+      pendingList.innerHTML = '<div class="pending-empty">Scan a few, then save them together.</div>';
+      return;
+    }
+    pendingList.innerHTML = q.map((item, i) => `
+      <div class="pending-row">
+        <span class="sku">${item.sku}</span>
+        <span class="qty">x${item.qty}</span>
+        <button class="remove-btn" data-index="${i}">&times;</button>
+      </div>
+    `).join('');
+    pendingList.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        queues[mode].splice(idx, 1);
+        renderPending();
+      });
+    });
+  }
+
+  clearPending.addEventListener('click', () => {
+    queues[mode] = [];
+    renderPending();
+  });
+
+  // ---------- history (items that have actually been saved) ----------
+  const historyWrap = document.getElementById('historyWrap');
+  const historyCount = document.getElementById('historyCount');
+  let entries = [];
+
+  function renderLog(){
+    historyCount.textContent = entries.length + (entries.length === 1 ? ' entry' : ' entries');
+    if(entries.length === 0){
+      historyWrap.innerHTML = '<div class="log-empty">No entries yet</div>';
+      return;
+    }
+    const rows = entries.map(e => `
+      <tr>
+        <td><span class="badge" style="background:${MODES[e.type].dim}; color:${MODES[e.type].color}">${e.type}</span></td>
+        <td class="sku-cell">${e.sku}</td>
+        <td>${e.qty}</td>
+        <td class="time-cell">${e.time}</td>
+        <td><span class="state-dot ${e.state}"></span>${e.state === 'ok' ? 'Saved' : e.state === 'fail' ? 'Failed' : 'Sending'}</td>
+      </tr>
+    `).join('');
+    historyWrap.innerHTML = `
+      <table class="history-table">
+        <thead>
+          <tr><th>Type</th><th>SKU</th><th>Qty</th><th>Time</th><th>Status</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function addHistoryEntry(sku, qtyVal, type){
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const entry = { sku, qty: qtyVal, type, time, state: 'pending' };
+    entries.unshift(entry);
+    if(entries.length > 300) entries.pop();
+    renderLog();
+    sendToSheet(entry);
+  }
+
+  function sendToSheet(entry){
+    if(!configured){ entry.state = 'fail'; renderLog(); return; }
+    fetch(WEBAPP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ sku: entry.sku, qty: entry.qty, type: entry.type })
+    }).then(() => {
+      entry.state = 'ok'; renderLog();
+    }).catch(() => {
+      entry.state = 'fail'; renderLog();
+    });
+  }
+
+  // ---------- scan (adds to pending queue, does NOT save yet) ----------
+  function queueScan(){
+    const val = skuInput.value.trim();
+    if(!val) return;
+    queues[mode].push({ sku: val, qty });
+    renderPending();
+    skuInput.value = '';
+    qty = 1;
+    qtyValue.textContent = qty;
+    skuInput.focus();
+  }
+  skuInput.addEventListener('keydown', (ev) => {
+    if(ev.key === 'Enter'){ queueScan(); }
+  });
+
+  // ---------- save (sends everything in the current mode's queue) ----------
+  function saveBatch(){
+    const q = queues[mode];
+    if(q.length === 0) return;
+    q.forEach(item => addHistoryEntry(item.sku, item.qty, mode));
+    queues[mode] = [];
+    renderPending();
+  }
+  saveBtn.addEventListener('click', saveBatch);
+  document.addEventListener('click', (ev) => {
+    const panel = document.getElementById('cameraPanel');
+    if(view === 'SCAN' && !panel.classList.contains('open')) skuInput.focus();
+  });
+
+  // ---------- camera ----------
+  let html5QrCode = null;
+  let camRunning = false;
+  const scanToggle = document.getElementById('scanToggle');
+  const cameraPanel = document.getElementById('cameraPanel');
+  const camStatus = document.getElementById('camStatus');
+  let lastCamValue = '';
+  let lastCamTime = 0;
+
+  scanToggle.addEventListener('click', () => {
+    if(camRunning){ stopCamera(); } else { openCamera(); }
+  });
+
+  function openCamera(){
+    cameraPanel.classList.add('open');
+    scanToggle.classList.add('active');
+    if(typeof Html5Qrcode === 'undefined'){
+      camStatus.textContent = 'Camera library failed to load. Check your connection.';
+      return;
+    }
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 140 } },
+      (decodedText) => {
+        const now = Date.now();
+        if(decodedText === lastCamValue && now - lastCamTime < 1500) return;
+        lastCamValue = decodedText;
+        lastCamTime = now;
+        skuInput.value = decodedText;
+        queueScan();
+        if(navigator.vibrate) navigator.vibrate(80);
+      },
+      () => {}
+    ).then(() => {
+      camRunning = true;
+      camStatus.textContent = 'Point the camera at a barcode';
+    }).catch((err) => {
+      camStatus.textContent = 'Could not access camera: ' + err;
+    });
+  }
+
+  function stopCamera(){
+    if(html5QrCode && camRunning){
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+        camRunning = false;
+        cameraPanel.classList.remove('open');
+        scanToggle.classList.remove('active');
+      }).catch(() => {});
+    } else {
+      cameraPanel.classList.remove('open');
+      scanToggle.classList.remove('active');
+    }
+  }
+
+  applyMode();
+  updateView();
+  renderPending();
+  renderLog();
+</script>
+</body>
+</html>
