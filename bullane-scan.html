@@ -330,29 +330,17 @@
   }
 
   @media (max-width: 760px){
-    .shell{ flex-direction:column; }
-    aside{
-      width:100%;
-      flex-direction:row;
-      align-items:center;
-      justify-content:space-between;
-      padding:12px 14px;
-      border-right:none;
-      border-bottom:1px solid var(--border);
-    }
-    .brand{ padding:0; }
-    .brand-name{ display:inline; font-size:14px; }
-    nav{ flex-direction:row; gap:2px; }
-    .nav-divider{ width:1px; height:20px; margin:0 4px; }
-    .nav-btn{ flex-direction:column; gap:3px; padding:6px 9px; font-size:9.5px; text-align:center; }
-    .sidebar-status{ margin-top:0; margin-left:8px; padding:0; }
+    aside{ width:76px; padding:18px 8px; align-items:center; }
+    .brand{ justify-content:center; padding:4px 0 20px; }
+    .brand-name{ display:none; }
+    .nav-btn{ flex-direction:column; gap:4px; padding:11px 4px; font-size:10px; text-align:center; }
+    .nav-btn span.label{ }
     .sidebar-status span:last-child{ display:none; }
-    main{ padding:20px 16px; }
-
-    /* history: one line per entry, scrolls sideways instead of stacking into 4 rows */
-    #historyWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    .history-table{ min-width:560px; }
-    .history-table thead th, .history-table tbody td{ padding:9px 12px; font-size:12px; white-space:nowrap; }
+    main{ padding:24px 18px; }
+    .history-table thead{ display:none; }
+    .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
+    .history-table tr{ padding:10px 14px; border-bottom:1px solid var(--border); }
+    .history-table td{ padding:2px 0; border:none; }
   }
 </style>
 </head>
