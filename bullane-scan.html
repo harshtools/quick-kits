@@ -406,7 +406,7 @@
     <!-- CONFIGURE THIS: paste your Apps Script Web App URL below     -->
     <!-- ============================================================ -->
     <script>
-      const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwUCLOZKjkOUCPkI8URVcDonUfueXnz7TFPFI3MERqC_4ODvA1grPuZ8vbtjwymkNkU/exec";
+      const WEBAPP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
     </script>
 
     <div class="config-warning" id="configWarning">
@@ -621,21 +621,31 @@
     const entry = { sku, qty: qtyVal, type, time, state: 'pending' };
     entries.unshift(entry);
     if(entries.length > 300) entries.pop();
-    renderLog();
-    sendToSheet(entry);
+    return entry;
   }
 
-  function sendToSheet(entry){
-    if(!configured){ entry.state = 'fail'; renderLog(); return; }
+  // Sends every item in one single request instead of one request per item.
+  // Firing them separately let Google receive several writes at once, which
+  // could race and silently drop rows (some scans "sent" but never landed
+  // in the sheet). Bundling them into one request removes that risk.
+  function sendBatchToSheet(entryList, type){
+    if(!configured){
+      entryList.forEach(e => { e.state = 'fail'; });
+      renderLog();
+      return;
+    }
+    const items = entryList.map(e => ({ sku: e.sku, qty: e.qty }));
     fetch(WEBAPP_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ sku: entry.sku, qty: entry.qty, type: entry.type })
+      body: JSON.stringify({ type, items })
     }).then(() => {
-      entry.state = 'ok'; renderLog();
+      entryList.forEach(e => { e.state = 'ok'; });
+      renderLog();
     }).catch(() => {
-      entry.state = 'fail'; renderLog();
+      entryList.forEach(e => { e.state = 'fail'; });
+      renderLog();
     });
   }
 
@@ -676,11 +686,13 @@
     }
   });
 
-  // ---------- save (sends everything in the current mode's queue) ----------
+  // ---------- save (sends everything in the current mode's queue, as ONE request) ----------
   function saveBatch(){
     const q = queues[mode];
     if(q.length === 0) return;
-    q.forEach(item => addHistoryEntry(item.sku, item.qty, mode));
+    const newEntries = q.map(item => addHistoryEntry(item.sku, item.qty, mode));
+    renderLog();
+    sendBatchToSheet(newEntries, mode);
     queues[mode] = [];
     renderPending();
   }
