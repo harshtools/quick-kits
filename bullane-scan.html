@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bullane Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#08090c;
@@ -29,10 +32,17 @@
 
     --current-accent: var(--rto);
 
+    --iris-1:#3fd68c;
+    --iris-2:#5b7fd6;
+    --iris-3:#b28bf0;
+
+    --radius-lg:32px;
+    --radius-md:18px;
+
     --green:#4bd98a;
     --red:#e0655a;
     --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   *{ box-sizing:border-box; }
   html, body{ height:100%; }
@@ -97,26 +107,32 @@
     letter-spacing:0.1px;
   }
 
-  nav{ display:flex; flex-direction:column; gap:2px; position:relative; z-index:1; }
+  nav{ display:flex; flex-direction:column; gap:5px; position:relative; z-index:1; }
   .nav-btn{
     display:flex;
     align-items:center;
+    justify-content:space-between;
     gap:12px;
     padding:11px 12px;
-    border-radius:12px;
+    border-radius:14px;
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.05);
     color:var(--muted);
     cursor:pointer;
     font-size:13.5px;
     font-weight:600;
-    border-left:2px solid transparent;
-    transition:background 0.15s, color 0.15s;
+    transition:background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .nav-btn-main{ display:flex; align-items:center; gap:12px; min-width:0; }
   .nav-btn svg{ width:18px; height:18px; flex:none; }
-  .nav-btn:hover{ background:rgba(255,255,255,0.04); color:var(--text); }
-  .nav-btn.active-in{ color:var(--in); background:rgba(63,214,140,0.10); box-shadow:inset 0 0 0 1px rgba(63,214,140,0.18); }
-  .nav-btn.active-out{ color:var(--out); background:rgba(224,114,90,0.10); box-shadow:inset 0 0 0 1px rgba(224,114,90,0.18); }
-  .nav-btn.active-rto{ color:var(--rto); background:rgba(224,180,90,0.10); box-shadow:inset 0 0 0 1px rgba(224,180,90,0.18); }
-  .nav-btn.active-history{ color:var(--history); background:rgba(143,163,224,0.10); box-shadow:inset 0 0 0 1px rgba(143,163,224,0.18); }
+  .nav-arrow{ width:14px; height:14px; flex:none; opacity:0; transform:translateX(-3px); transition:opacity 0.15s, transform 0.15s; }
+  .nav-btn:hover{ background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.09); color:var(--text); }
+  .nav-btn:hover .nav-arrow{ opacity:0.6; transform:translateX(0); }
+  .nav-btn.active-in{ color:var(--in); background:rgba(63,214,140,0.10); border-color:rgba(63,214,140,0.25); }
+  .nav-btn.active-out{ color:var(--out); background:rgba(224,114,90,0.10); border-color:rgba(224,114,90,0.25); }
+  .nav-btn.active-rto{ color:var(--rto); background:rgba(224,180,90,0.10); border-color:rgba(224,180,90,0.25); }
+  .nav-btn.active-history{ color:var(--history); background:rgba(143,163,224,0.10); border-color:rgba(143,163,224,0.25); }
+  .nav-btn.active-in .nav-arrow, .nav-btn.active-out .nav-arrow, .nav-btn.active-rto .nav-arrow, .nav-btn.active-history .nav-arrow{ opacity:0.9; transform:translateX(0); }
 
   .nav-divider{
     height:1px;
@@ -153,8 +169,14 @@
   }
 
   .page-title{
-    font-size:20px;
-    font-weight:700;
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    margin:0 0 6px;
+  }
+  .page-sub{
+    font-size:13.5px;
+    color:var(--muted);
     margin:0 0 22px;
   }
 
@@ -176,53 +198,79 @@
     border-radius:4px;
   }
 
-  .mode-pill{
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    padding:6px 13px;
-    border-radius:999px;
-    font-size:11.5px;
-    font-weight:700;
-    letter-spacing:0.4px;
-    margin-bottom:20px;
-    box-shadow:0 0 0 1px currentColor inset;
-  }
-  .mode-pill .dot{ width:6px; height:6px; border-radius:50%; box-shadow:0 0 6px currentColor; }
-
   .card{
     background:linear-gradient(165deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
     border:1px solid rgba(255,255,255,0.09);
-    border-radius:28px;
-    padding:24px;
+    border-radius:var(--radius-lg);
+    padding:28px;
     position:relative;
     box-shadow:
-      0 30px 70px -30px rgba(0,0,0,0.75),
-      inset 0 1px 0 rgba(255,255,255,0.09);
+      0 40px 90px -30px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.1);
     backdrop-filter:blur(20px);
     -webkit-backdrop-filter:blur(20px);
   }
   .card::before{
     content:"";
     position:absolute;
-    top:-70px; left:-50px;
+    bottom:-80px; left:-60px;
     width:220px; height:220px;
     background:radial-gradient(circle, var(--current-accent) 0%, transparent 70%);
-    filter:blur(55px);
-    opacity:0.30;
+    filter:blur(58px);
+    opacity:0.26;
     z-index:-1;
     pointer-events:none;
   }
   .card::after{
     content:"";
     position:absolute;
-    bottom:-80px; right:-60px;
+    top:-70px; right:-50px;
     width:220px; height:220px;
-    background:radial-gradient(circle, var(--current-accent) 0%, transparent 70%);
+    background:radial-gradient(circle, #ffffff 0%, transparent 70%);
     filter:blur(60px);
-    opacity:0.14;
+    opacity:0.12;
     z-index:-1;
     pointer-events:none;
+  }
+  .card-rim{
+    position:absolute;
+    inset:-1px;
+    border-radius:inherit;
+    padding:1.5px;
+    background:conic-gradient(from 0deg,
+      transparent 0deg,
+      #ffffff 35deg,
+      transparent 95deg,
+      transparent 195deg,
+      var(--current-accent) 225deg,
+      transparent 265deg,
+      transparent 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    opacity:0.8;
+    pointer-events:none;
+  }
+  .card-shine{
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    background:linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.07) 46%, transparent 62%);
+    mix-blend-mode:screen;
+    pointer-events:none;
+  }
+
+  .hero-title{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    margin:0 0 6px;
+    transition:color 0.15s;
+  }
+  .hero-sub{
+    font-size:13.5px;
+    color:var(--muted);
+    margin:0 0 22px;
   }
   .field-label{
     font-size:12px;
@@ -233,12 +281,12 @@
   input#skuInput{
     flex:1;
     min-width:0;
-    background:rgba(255,255,255,0.035);
-    border:1px solid rgba(255,255,255,0.09);
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.08);
     color:var(--text);
     font-family:var(--mono);
     font-size:15px;
-    padding:13px 16px;
+    padding:14px 18px;
     border-radius:999px;
     outline:none;
     transition:border-color 0.15s, box-shadow 0.15s;
@@ -247,20 +295,19 @@
   .scan-btn{
     flex:none;
     width:48px; height:48px;
-    background:rgba(255,255,255,0.05);
-    border:1px solid rgba(255,255,255,0.09);
+    background:var(--current-accent);
+    border:1px solid var(--current-accent);
     border-radius:50%;
-    color:var(--muted);
+    color:#0b0f10;
     cursor:pointer;
     display:flex; align-items:center; justify-content:center;
-    transition:background 0.15s, color 0.15s, box-shadow 0.15s;
+    box-shadow:0 8px 22px -8px var(--current-accent);
+    transition:filter 0.15s, box-shadow 0.15s, transform 0.1s;
   }
-  .scan-btn:hover{ color:var(--text); }
+  .scan-btn:hover{ filter:brightness(1.08); }
+  .scan-btn:active{ transform:scale(0.96); }
   .scan-btn.active{
-    background:var(--current-accent);
-    border-color:var(--current-accent);
-    color:#0b0f10;
-    box-shadow:0 6px 20px -6px var(--current-accent);
+    box-shadow:0 0 0 4px color-mix(in srgb, var(--current-accent) 25%, transparent), 0 8px 22px -8px var(--current-accent);
   }
 
   #cameraPanel{ margin-top:12px; display:none; }
@@ -292,7 +339,7 @@
   }
   .cam-status{ font-size:12px; color:var(--muted); margin-top:8px; text-align:center; }
 
-  .qty-label{ font-size:12px; color:var(--muted); margin:18px 0 8px; }
+  .qty-label{ font-size:12px; color:var(--muted); margin:0 0 8px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.07); }
   .qty-row{ display:flex; align-items:stretch; gap:10px; }
   .qty-btn{
     flex:none; width:44px; height:44px;
@@ -317,7 +364,8 @@
 
   .pending-label{
     display:flex; align-items:center; justify-content:space-between;
-    font-size:12px; color:var(--muted); margin:18px 0 8px;
+    font-size:12px; color:var(--muted); margin:18px 0 8px; padding-top:18px;
+    border-top:1px solid rgba(255,255,255,0.07);
   }
   .pending-label .clear-link{ color:var(--muted-2); text-decoration:underline; cursor:pointer; }
   .pending-label .clear-link:hover{ color:var(--muted); }
@@ -347,7 +395,7 @@
     margin-top:18px;
     padding:15px 0;
     border:none;
-    border-radius:16px;
+    border-radius:var(--radius-md);
     font-weight:700;
     font-size:13.5px;
     cursor:pointer;
@@ -359,6 +407,19 @@
   .save-btn:hover{ filter:brightness(1.08); }
   .save-btn:active{ transform:scale(0.99); }
   .save-btn:disabled{ opacity:0.35; cursor:default; filter:none; box-shadow:none; }
+
+  .card-footer{
+    text-align:center;
+    font-size:12.5px;
+    color:var(--muted-2);
+    margin-top:18px;
+  }
+  .card-footer .footer-link{
+    color:var(--current-accent);
+    font-weight:700;
+    cursor:pointer;
+  }
+  .card-footer .footer-link:hover{ text-decoration:underline; }
 
   /* ---------------- history table ---------------- */
   .history-toolbar{
@@ -380,7 +441,7 @@
     border-collapse:collapse;
     background:var(--surface);
     border:1px solid var(--border);
-    border-radius:12px;
+    border-radius:18px;
     overflow:hidden;
   }
   .history-table thead th{
@@ -421,7 +482,7 @@
     padding:36px 0;
     background:var(--surface);
     border:1px solid var(--border);
-    border-radius:12px;
+    border-radius:18px;
     max-width:920px;
   }
 
@@ -429,8 +490,9 @@
     aside{ width:76px; padding:18px 8px; align-items:center; }
     .brand{ justify-content:center; padding:4px 0 20px; }
     .brand-name{ display:none; }
-    .nav-btn{ flex-direction:column; gap:4px; padding:11px 4px; font-size:10px; text-align:center; }
-    .nav-btn span.label{ }
+    .nav-btn{ flex-direction:column; justify-content:center; gap:4px; padding:11px 4px; font-size:10px; text-align:center; }
+    .nav-btn-main{ flex-direction:column; gap:4px; }
+    .nav-arrow{ display:none; }
     .sidebar-status span:last-child{ display:none; }
     main{ padding:24px 18px; }
     #historyWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -450,21 +512,33 @@
 
     <nav>
       <div class="nav-btn" id="navOut" data-mode="OUT">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
-        <span class="label">OUT</span>
+        <span class="nav-btn-main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+          <span class="label">OUT</span>
+        </span>
+        <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
       </div>
       <div class="nav-btn" id="navIn" data-mode="IN">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
-        <span class="label">IN</span>
+        <span class="nav-btn-main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+          <span class="label">IN</span>
+        </span>
+        <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
       </div>
       <div class="nav-btn" id="navRto" data-mode="RTO">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-        <span class="label">RTO</span>
+        <span class="nav-btn-main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          <span class="label">RTO</span>
+        </span>
+        <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
       </div>
       <div class="nav-divider"></div>
       <div class="nav-btn" id="navHistory">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        <span class="label">History</span>
+        <span class="nav-btn-main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <span class="label">History</span>
+        </span>
+        <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
       </div>
     </nav>
 
@@ -486,11 +560,12 @@
     </div>
 
     <div id="scanView" class="content-cap">
-      <div class="mode-pill" id="modePill">
-        <span class="dot"></span><span id="modePillText">SCAN RTO</span>
-      </div>
+      <h1 class="hero-title" id="heroTitle">Scan RTO</h1>
+      <p class="hero-sub" id="heroSub">Log a returned SKU into the sheet.</p>
 
       <div class="card">
+        <div class="card-rim"></div>
+        <div class="card-shine"></div>
         <div class="field-label">Scan or search SKU</div>
         <div class="sku-row">
           <input id="skuInput" type="text" placeholder="e.g. 01SM-M" autocomplete="off" autofocus>
@@ -527,10 +602,12 @@
 
         <button class="save-btn" id="saveBtn" disabled>Save RTO</button>
       </div>
+      <div class="card-footer">Made a mistake? <span class="footer-link" id="gotoHistory">View history</span></div>
     </div>
 
     <div id="historyView" style="display:none;">
       <h1 class="page-title">History</h1>
+      <p class="page-sub">Every scan that's been sent to the sheet.</p>
       <div class="history-toolbar">
         <span class="history-count" id="historyCount">0 entries</span>
         <span class="retry-link" id="retryFailed" style="display:none;">Retry failed</span>
@@ -568,8 +645,13 @@
   let mode = 'RTO';
   let view = 'SCAN'; // 'SCAN' or 'HISTORY'
 
-  const modePill = document.getElementById('modePill');
-  const modePillText = document.getElementById('modePillText');
+  const heroTitle = document.getElementById('heroTitle');
+  const heroSub = document.getElementById('heroSub');
+  const MODE_COPY = {
+    IN:  'Log SKUs coming into stock.',
+    OUT: 'Log SKUs going out.',
+    RTO: 'Log a returned SKU into the sheet.'
+  };
   const saveBtn = document.getElementById('saveBtn');
   const navOut = document.getElementById('navOut');
   const navIn = document.getElementById('navIn');
@@ -581,10 +663,10 @@
 
   function applyMode(){
     const m = MODES[mode];
-    modePillText.textContent = 'SCAN ' + mode;
-    modePill.style.background = m.dim;
-    modePill.style.color = m.color;
-    modePill.querySelector('.dot').style.background = m.color;
+    document.documentElement.style.setProperty('--current-accent', 'var(--' + mode.toLowerCase() + ')');
+    heroTitle.textContent = 'Scan ' + mode;
+    heroTitle.style.color = m.color;
+    heroSub.textContent = MODE_COPY[mode];
     saveBtn.style.background = m.color;
     renderPending();
     if(view === 'SCAN') skuInput.focus();
@@ -608,6 +690,7 @@
   navIn.addEventListener('click', () => { mode = 'IN'; view = 'SCAN'; applyMode(); updateView(); });
   navRto.addEventListener('click', () => { mode = 'RTO'; view = 'SCAN'; applyMode(); updateView(); });
   navHistory.addEventListener('click', () => { view = 'HISTORY'; updateView(); });
+  document.getElementById('gotoHistory').addEventListener('click', () => { view = 'HISTORY'; updateView(); });
 
   // ---------- quantity ----------
   const qtyValue = document.getElementById('qtyValue');
@@ -630,7 +713,7 @@
   function renderPending(){
     const q = queues[mode];
     pendingLabelText.textContent = 'Pending (' + q.length + ')';
-    saveBtn.textContent = 'Save ' + mode + (q.length ? ' (' + q.length + ')' : '');
+    saveBtn.textContent = 'Save ' + mode + (q.length ? ' (' + q.length + ')' : '') + (q.length ? '  \u2192' : '');
     saveBtn.disabled = q.length === 0;
 
     if(q.length === 0){
