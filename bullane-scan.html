@@ -1087,9 +1087,43 @@
       camStatus.textContent = nativeDetectorAvailable ? 'Point the camera at a barcode (fast mode)' : 'Point the camera at a barcode';
       cameraFlip.style.display = (cameraDevices.length > 1) ? 'flex' : 'none';
       setTimeout(setupTorchButton, 300); // small delay so the video track is fully ready
+      // Camera labels can't always be trusted to say "back"/"rear" — once
+      // the stream is actually live, ask the track itself which way it's
+      // facing (this is the phone's own resolved answer, not a guess) and
+      // silently switch to the next camera if it turns out to be front.
+      // Camera labels can't always be trusted to say "back"/"rear" — once
+      // the stream is actually live, ask the track itself which way it's
+      // facing (this is the phone's own resolved answer, not a guess) and
+      // silently switch to the next camera if it turns out to be front.
+      // Skipped after a manual flip, so tapping the flip button on purpose
+      // to reach the front camera isn't immediately reversed.
+      if(!skipAutoCorrectOnce){
+        setTimeout(confirmBackFacing, 350);
+      }
+      skipAutoCorrectOnce = false;
     }).catch((err) => {
       camStatus.textContent = 'Could not access camera: ' + err;
     });
+  }
+
+  let autoFlipAttempts = 0;
+  let skipAutoCorrectOnce = false;
+  function confirmBackFacing(){
+    if(!camRunning || cameraDevices.length < 2) return;
+    const track = getActiveVideoTrack();
+    const settings = (track && track.getSettings) ? track.getSettings() : {};
+    if(settings && settings.facingMode === 'user' && autoFlipAttempts < cameraDevices.length - 1){
+      autoFlipAttempts++;
+      cameraIndex = (cameraIndex + 1) % cameraDevices.length;
+      camStatus.textContent = 'Switching to back camera...';
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+        camRunning = false;
+        openCamera();
+      }).catch(() => {});
+    } else {
+      autoFlipAttempts = 0; // settled on a camera, reset for next time the camera is opened
+    }
   }
 
   // Cycles to the next camera in the phone's own device list (not a
@@ -1100,6 +1134,7 @@
     camStatus.textContent = 'Switching camera...';
     torchOn = false;
     torchToggle.classList.remove('active');
+    skipAutoCorrectOnce = true;
     try {
       await html5QrCode.stop();
       html5QrCode.clear();
