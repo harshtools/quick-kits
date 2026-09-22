@@ -968,20 +968,19 @@
     html5QrCode = new Html5Qrcode("reader");
     const nativeDetectorAvailable = (typeof BarcodeDetector !== 'undefined');
     html5QrCode.start(
-      {
-        facingMode: "environment",
-        // Don't ask for a huge camera resolution — decoding a smaller frame
-        // is much faster on lower-end phones and barcodes don't need 4K.
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        // Some phones default web camera access to slower single-shot
-        // autofocus; ask explicitly for continuous focus so it keeps
-        // hunting for sharpness on its own instead of waiting to be asked.
-        advanced: [{ focusMode: "continuous" }]
-      },
+      { facingMode: "environment" },
       {
         fps: 10,
         qrbox: { width: 280, height: 140 },
+        // Don't ask for a huge camera resolution — decoding a smaller frame
+        // is much faster on lower-end phones and barcodes don't need 4K.
+        // Also ask for continuous autofocus, since some phones default web
+        // camera access to slower single-shot focus.
+        videoConstraints: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          advanced: [{ focusMode: "continuous" }]
+        },
         // Use the phone's own built-in barcode reader when it has one
         // (most modern Android phones do) instead of decoding every frame
         // in JavaScript — this is the biggest speed difference between
