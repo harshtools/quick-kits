@@ -506,13 +506,25 @@
   }
 
   @media (max-width: 760px){
-    aside{ width:76px; padding:18px 8px; align-items:center; }
-    .brand{ justify-content:center; padding:4px 0 20px; }
-    .brand-name{ display:none; }
-    .nav-btn{ flex-direction:column; justify-content:center; gap:4px; padding:11px 4px; font-size:10px; text-align:center; }
-    .nav-btn-main{ flex-direction:column; gap:4px; }
+    .shell{ flex-direction:column; }
+    aside{
+      order:2;
+      width:100%;
+      flex-direction:row;
+      align-items:center;
+      padding:8px 10px;
+      border-right:none;
+      border-top:1px solid rgba(255,255,255,0.07);
+      overflow:visible;
+    }
+    aside::before{ display:none; }
+    .brand{ display:none; }
+    nav{ flex-direction:row; flex:1; gap:4px; }
+    .nav-btn{ flex:1; flex-direction:column; justify-content:center; gap:3px; padding:9px 4px; font-size:10px; text-align:center; border-radius:12px; }
+    .nav-btn-main{ flex-direction:column; gap:3px; }
     .nav-arrow{ display:none; }
-    .sidebar-status span:last-child{ display:none; }
+    .nav-divider{ width:1px; height:26px; margin:0 4px; background:linear-gradient(180deg, transparent, rgba(255,255,255,0.14), transparent); }
+    .sidebar-status{ display:none; }
     main{ padding:24px 18px; }
     #historyWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .history-table{ min-width:560px; }
@@ -571,7 +583,7 @@
     <!-- CONFIGURE THIS: paste your Apps Script Web App URL below     -->
     <!-- ============================================================ -->
     <script>
-      const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwUCLOZKjkOUCPkI8URVcDonUfueXnz7TFPFI3MERqC_4ODvA1grPuZ8vbtjwymkNkU/exec";
+      const WEBAPP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
     </script>
 
     <div class="config-warning" id="configWarning">
@@ -587,7 +599,7 @@
         <div class="card-shine"></div>
         <div class="field-label">Scan or search SKU</div>
         <div class="sku-row">
-          <input id="skuInput" type="text" placeholder="e.g. 01SM-M" autocomplete="off" autofocus>
+          <input id="skuInput" type="text" placeholder="e.g. 01SM-M" autocomplete="off">
           <button class="scan-btn" id="scanToggle" title="Scan with camera">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/>
@@ -597,6 +609,12 @@
           <button class="torch-btn" id="torchToggle" title="Flashlight" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 2h6l-1 7h3l-8 13 2-9H8z"/>
+            </svg>
+          </button>
+          <button class="torch-btn" id="cameraFlip" title="Switch camera" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+              <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
             </svg>
           </button>
         </div>
@@ -684,6 +702,11 @@
   const scanView = document.getElementById('scanView');
   const historyView = document.getElementById('historyView');
   const skuInput = document.getElementById('skuInput');
+  // Touch phones/tablets don't need the field auto-focused on every mode
+  // switch — desktop does, so a scanner gun can type into it right away,
+  // but on a phone that focus is exactly what pops the keyboard up
+  // unexpectedly when you're just tapping between OUT / IN / RTO.
+  const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
   function applyMode(){
     const m = MODES[mode];
@@ -693,7 +716,7 @@
     heroSub.textContent = MODE_COPY[mode];
     saveBtn.style.background = m.color;
     renderPending();
-    if(view === 'SCAN') skuInput.focus();
+    if(view === 'SCAN' && !isTouchDevice) skuInput.focus();
   }
 
   function updateView(){
@@ -902,7 +925,7 @@
   saveBtn.addEventListener('click', saveBatch);
   document.addEventListener('click', (ev) => {
     const panel = document.getElementById('cameraPanel');
-    if(view === 'SCAN' && !panel.classList.contains('open')) skuInput.focus();
+    if(view === 'SCAN' && !isTouchDevice && !panel.classList.contains('open')) skuInput.focus();
   });
 
   // ---------- camera ----------
@@ -913,10 +936,12 @@
   const camStatus = document.getElementById('camStatus');
   const scanFlash = document.getElementById('scanFlash');
   const torchToggle = document.getElementById('torchToggle');
+  const cameraFlip = document.getElementById('cameraFlip');
   let lastCamValue = '';
   let lastCamTime = 0;
   let camLocked = false; // brief pause right after a hit so a moving barcode isn't half-read
   let torchOn = false;
+  let currentFacing = 'environment';
 
   function flashScan(text){
     scanFlash.innerHTML = '<span class="flash-label">' + text + ' added</span>';
@@ -968,7 +993,7 @@
     html5QrCode = new Html5Qrcode("reader");
     const nativeDetectorAvailable = (typeof BarcodeDetector !== 'undefined');
     html5QrCode.start(
-      { facingMode: "environment" },
+      { facingMode: { exact: currentFacing } },
       {
         fps: 10,
         qrbox: { width: 280, height: 140 },
@@ -1027,11 +1052,65 @@
     ).then(() => {
       camRunning = true;
       camStatus.textContent = nativeDetectorAvailable ? 'Point the camera at a barcode (fast mode)' : 'Point the camera at a barcode';
+      cameraFlip.style.display = 'flex';
       setTimeout(setupTorchButton, 300); // small delay so the video track is fully ready
     }).catch((err) => {
-      camStatus.textContent = 'Could not access camera: ' + err;
+      // Some phones don't have a camera that exactly matches "environment" —
+      // fall back to a soft preference instead of failing outright.
+      html5QrCode.start(
+        { facingMode: currentFacing },
+        {
+          fps: 10,
+          qrbox: { width: 280, height: 140 },
+          videoConstraints: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            advanced: [{ focusMode: "continuous" }]
+          },
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          disableFlip: true
+        },
+        (decodedText) => {
+          const now = Date.now();
+          if(camLocked) return;
+          if(decodedText === lastCamValue && now - lastCamTime < 1500) return;
+          lastCamValue = decodedText;
+          lastCamTime = now;
+          skuInput.value = decodedText;
+          queueScan();
+          flashScan(decodedText);
+          if(navigator.vibrate) navigator.vibrate(80);
+          camLocked = true;
+          setTimeout(() => { camLocked = false; }, 500);
+        },
+        () => {}
+      ).then(() => {
+        camRunning = true;
+        camStatus.textContent = 'Point the camera at a barcode';
+        cameraFlip.style.display = 'flex';
+        setTimeout(setupTorchButton, 300);
+      }).catch((err2) => {
+        camStatus.textContent = 'Could not access camera: ' + err2;
+      });
     });
   }
+
+  // Switches between the back (environment) and front (user) camera by
+  // stopping the current stream and restarting with the opposite facing
+  // mode, without closing the camera panel itself.
+  cameraFlip.addEventListener('click', async () => {
+    if(!camRunning || !html5QrCode) return;
+    currentFacing = (currentFacing === 'environment') ? 'user' : 'environment';
+    camStatus.textContent = 'Switching camera...';
+    torchOn = false;
+    torchToggle.classList.remove('active');
+    try {
+      await html5QrCode.stop();
+      html5QrCode.clear();
+    } catch(e){ /* ignore */ }
+    camRunning = false;
+    openCamera();
+  });
 
   function stopCamera(){
     if(html5QrCode && camRunning){
@@ -1042,14 +1121,18 @@
         scanToggle.classList.remove('active');
         torchToggle.style.display = 'none';
         torchToggle.classList.remove('active');
+        cameraFlip.style.display = 'none';
         torchOn = false;
+        currentFacing = 'environment';
       }).catch(() => {});
     } else {
       cameraPanel.classList.remove('open');
       scanToggle.classList.remove('active');
       torchToggle.style.display = 'none';
       torchToggle.classList.remove('active');
+      cameraFlip.style.display = 'none';
       torchOn = false;
+      currentFacing = 'environment';
     }
   }
 
@@ -1057,6 +1140,7 @@
   updateView();
   renderPending();
   renderLog();
+  if(!isTouchDevice) skuInput.focus(); // desktop only — a scanner gun can start typing right away
 </script>
 </body>
 </html>
