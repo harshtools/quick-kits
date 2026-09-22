@@ -941,7 +941,9 @@
   let lastCamTime = 0;
   let camLocked = false; // brief pause right after a hit so a moving barcode isn't half-read
   let torchOn = false;
-  let currentFacing = 'environment';
+  let cameraDevices = [];   // list of {id, label} from the phone itself
+  let cameraIndex = 0;      // which one in that list is active
+  let camerasLoaded = false;
 
   function flashScan(text){
     scanFlash.innerHTML = '<span class="flash-label">' + text + ' added</span>';
@@ -982,55 +984,35 @@
     if(camRunning){ stopCamera(); } else { openCamera(); }
   });
 
-  function openCamera(){
-    cameraPanel.classList.add('open');
-    scanToggle.classList.add('active');
-    skuInput.blur(); // close the on-screen keyboard if it was already open
-    if(typeof Html5Qrcode === 'undefined'){
-      camStatus.textContent = 'Camera library failed to load. Check your connection.';
-      return;
-    }
-    html5QrCode = new Html5Qrcode("reader");
-    const nativeDetectorAvailable = (typeof BarcodeDetector !== 'undefined');
-    html5QrCode.start(
-      { facingMode: { exact: currentFacing } },
-      {
-        fps: 10,
-        qrbox: { width: 280, height: 140 },
-        // Don't ask for a huge camera resolution — decoding a smaller frame
-        // is much faster on lower-end phones and barcodes don't need 4K.
-        // Also ask for continuous autofocus, since some phones default web
-        // camera access to slower single-shot focus.
-        videoConstraints: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          advanced: [{ focusMode: "continuous" }]
-        },
-        // Use the phone's own built-in barcode reader when it has one
-        // (most modern Android phones do) instead of decoding every frame
-        // in JavaScript — this is the biggest speed difference between
-        // devices. Falls back to the normal JS scanner automatically on
-        // phones that don't support it (including iPhone).
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        // Skip the horizontal-flip check every frame (barcodes are never
-        // mirrored in normal use) — small but free speed gain.
-        disableFlip: true,
-        // Only look for the kinds of barcode you actually use, not QR
-        // codes / data matrix / PDF417 etc. Fewer formats to try per frame
-        // means a faster decode, especially on phones using the slower
-        // JS fallback instead of the native reader.
-        formatsToSupport: (typeof Html5QrcodeSupportedFormats !== 'undefined') ? [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E
-        ] : undefined
-      },
+  // Some phones report front/back (facingMode) incorrectly, which is why
+  // the camera kept snapping back to front. Instead of trusting that label,
+  // we ask the phone for its actual list of cameras and select one by its
+  // specific device ID — that can't be misreported the way facingMode can.
+  function loadCameraList(){
+    return Html5Qrcode.getCameras().then((devices) => {
+      cameraDevices = devices || [];
+      camerasLoaded = true;
+      if(cameraDevices.length > 1){
+        // Guess which one is the back camera from its label so the first
+        // open defaults to it; if no label hints at it, just use the first.
+        const backIndex = cameraDevices.findIndex(d => /back|rear|environment/i.test(d.label || ''));
+        cameraIndex = backIndex >= 0 ? backIndex : 0;
+      } else {
+        cameraIndex = 0;
+      }
+    }).catch(() => {
+      cameraDevices = [];
+      camerasLoaded = true;
+    });
+  }
+
+  function startWithDevice(config){
+    const target = (cameraDevices[cameraIndex] && cameraDevices[cameraIndex].id)
+      ? cameraDevices[cameraIndex].id   // exact device — reliable
+      : { facingMode: "environment" };  // fallback if enumeration failed entirely
+    return html5QrCode.start(
+      target,
+      config,
       (decodedText) => {
         if(camLocked) return; // ignore decodes for a moment right after a confirmed scan
         const now = Date.now();
@@ -1043,64 +1025,78 @@
         camStatus.textContent = 'Move to the next barcode';
         if(navigator.vibrate) navigator.vibrate(80);
         camLocked = true;
-        setTimeout(() => {
-          camLocked = false;
-          camStatus.textContent = nativeDetectorAvailable ? 'Point the camera at a barcode (fast mode)' : 'Point the camera at a barcode';
-        }, 500);
+        setTimeout(() => { camLocked = false; camStatus.textContent = 'Point the camera at a barcode'; }, 500);
       },
       () => {}
-    ).then(() => {
+    );
+  }
+
+  function openCamera(){
+    cameraPanel.classList.add('open');
+    scanToggle.classList.add('active');
+    skuInput.blur(); // close the on-screen keyboard if it was already open
+    if(typeof Html5Qrcode === 'undefined'){
+      camStatus.textContent = 'Camera library failed to load. Check your connection.';
+      return;
+    }
+    html5QrCode = new Html5Qrcode("reader");
+
+    const scanConfig = {
+      fps: 10,
+      qrbox: { width: 280, height: 140 },
+      // Don't ask for a huge camera resolution — decoding a smaller frame
+      // is much faster on lower-end phones and barcodes don't need 4K.
+      // Also ask for continuous autofocus, since some phones default web
+      // camera access to slower single-shot focus.
+      videoConstraints: {
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        advanced: [{ focusMode: "continuous" }]
+      },
+      // Use the phone's own built-in barcode reader when it has one
+      // (most modern Android phones do) instead of decoding every frame
+      // in JavaScript — this is the biggest speed difference between
+      // devices. Falls back to the normal JS scanner automatically on
+      // phones that don't support it (including iPhone).
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      // Skip the horizontal-flip check every frame (barcodes are never
+      // mirrored in normal use) — small but free speed gain.
+      disableFlip: true,
+      // Only look for the kinds of barcode you actually use, not QR
+      // codes / data matrix / PDF417 etc. Fewer formats to try per frame
+      // means a faster decode, especially on phones using the slower
+      // JS fallback instead of the native reader.
+      formatsToSupport: (typeof Html5QrcodeSupportedFormats !== 'undefined') ? [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
+      ] : undefined
+    };
+
+    const nativeDetectorAvailable = (typeof BarcodeDetector !== 'undefined');
+
+    const ready = camerasLoaded ? Promise.resolve() : loadCameraList();
+    ready.then(() => startWithDevice(scanConfig)).then(() => {
       camRunning = true;
       camStatus.textContent = nativeDetectorAvailable ? 'Point the camera at a barcode (fast mode)' : 'Point the camera at a barcode';
-      cameraFlip.style.display = 'flex';
+      cameraFlip.style.display = (cameraDevices.length > 1) ? 'flex' : 'none';
       setTimeout(setupTorchButton, 300); // small delay so the video track is fully ready
     }).catch((err) => {
-      // Some phones don't have a camera that exactly matches "environment" —
-      // fall back to a soft preference instead of failing outright.
-      html5QrCode.start(
-        { facingMode: currentFacing },
-        {
-          fps: 10,
-          qrbox: { width: 280, height: 140 },
-          videoConstraints: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            advanced: [{ focusMode: "continuous" }]
-          },
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-          disableFlip: true
-        },
-        (decodedText) => {
-          const now = Date.now();
-          if(camLocked) return;
-          if(decodedText === lastCamValue && now - lastCamTime < 1500) return;
-          lastCamValue = decodedText;
-          lastCamTime = now;
-          skuInput.value = decodedText;
-          queueScan();
-          flashScan(decodedText);
-          if(navigator.vibrate) navigator.vibrate(80);
-          camLocked = true;
-          setTimeout(() => { camLocked = false; }, 500);
-        },
-        () => {}
-      ).then(() => {
-        camRunning = true;
-        camStatus.textContent = 'Point the camera at a barcode';
-        cameraFlip.style.display = 'flex';
-        setTimeout(setupTorchButton, 300);
-      }).catch((err2) => {
-        camStatus.textContent = 'Could not access camera: ' + err2;
-      });
+      camStatus.textContent = 'Could not access camera: ' + err;
     });
   }
 
-  // Switches between the back (environment) and front (user) camera by
-  // stopping the current stream and restarting with the opposite facing
-  // mode, without closing the camera panel itself.
+  // Cycles to the next camera in the phone's own device list (not a
+  // front/back guess) and restarts the stream on that exact device.
   cameraFlip.addEventListener('click', async () => {
-    if(!camRunning || !html5QrCode) return;
-    currentFacing = (currentFacing === 'environment') ? 'user' : 'environment';
+    if(!camRunning || !html5QrCode || cameraDevices.length < 2) return;
+    cameraIndex = (cameraIndex + 1) % cameraDevices.length;
     camStatus.textContent = 'Switching camera...';
     torchOn = false;
     torchToggle.classList.remove('active');
@@ -1123,7 +1119,6 @@
         torchToggle.classList.remove('active');
         cameraFlip.style.display = 'none';
         torchOn = false;
-        currentFacing = 'environment';
       }).catch(() => {});
     } else {
       cameraPanel.classList.remove('open');
@@ -1132,7 +1127,6 @@
       torchToggle.classList.remove('active');
       cameraFlip.style.display = 'none';
       torchOn = false;
-      currentFacing = 'environment';
     }
   }
 
