@@ -442,6 +442,13 @@
     return str;
   }
 
+  function toLast10Digits(value) {
+    if (value === "" || value === undefined || value === null) return value;
+    const digits = String(value).replace(/\D/g, "");
+    if (!digits) return String(value).trim();
+    return digits.length > 10 ? digits.slice(-10) : digits;
+  }
+
   function isWeirdName(name) {
     const trimmed = String(name ?? "").trim();
     if (!trimmed) return true;
@@ -596,6 +603,7 @@
             const filtered = {};
             present.forEach((c) => (filtered[c] = rowObj[c]));
             if ("Created at" in filtered) filtered["Created at"] = toDateOnly(filtered["Created at"]);
+            if ("Billing Phone" in filtered) filtered["Billing Phone"] = toLast10Digits(filtered["Billing Phone"]);
             const renamed = {};
             present.forEach((c) => { renamed[RENAME_MAP[c] || c] = filtered[c]; });
             return renamed;
