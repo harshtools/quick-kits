@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Label Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDE6D6; --panel-a:#FBF8F0; --panel-b:#F1EADA; --ink:#1C1F26; --sub:#6B6656;
+    --line:#DCD3BC; --accent:#C1810A; --accent2:#8A5E08; --accent-ink:#FFF9EE;
+    --stock:#FFFFFF; --stock-ink:#0A0A0A; --radius:12px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#151209; --panel-a:#231E14; --panel-b:#1A160E; --ink:#F3EEDD; --sub:#A79C7C;
+      --line:#3A3222; --accent:#E7A82A; --accent2:#B67A10; --accent-ink:#1C1400;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#151209; --panel-a:#231E14; --panel-b:#1A160E; --ink:#F3EEDD; --sub:#A79C7C;
+    --line:#3A3222; --accent:#E7A82A; --accent2:#B67A10; --accent-ink:#1C1400;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    margin:0; color:var(--ink);
+    background:
+      radial-gradient(900px 420px at 85% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+      var(--bg);
+    font-family:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+    min-height:100%;
+  }
+  header{ padding:26px clamp(16px,4vw,40px) 8px; max-width:1180px; margin:0 auto; }
+  header h1{font-size:21px; margin:0 0 6px; font-weight:700; letter-spacing:-0.01em;}
+  header .bar{width:46px; height:3px; border-radius:2px; background:linear-gradient(90deg,var(--accent),var(--accent2)); margin-bottom:9px;}
+  header p{margin:0; color:var(--sub); font-size:13.5px;}
+  main{
+    max-width:1180px; margin:0 auto; padding:18px clamp(16px,4vw,40px) 60px;
+    display:grid; grid-template-columns: 1.15fr 1fr; gap:20px; align-items:start;
+  }
+  @media (max-width:840px){ main{grid-template-columns:1fr;} }
+
+  .card{
+    background:linear-gradient(160deg,var(--panel-a),var(--panel-b));
+    border:1px solid var(--line); border-radius:var(--radius); padding:22px;
+    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 14px 30px -18px rgba(0,0,0,.35);
+  }
+  .card.right{position:sticky; top:14px;}
+  .card h2{font-size:13px; margin:0 0 14px; text-transform:uppercase; letter-spacing:.08em; color:var(--sub); font-weight:600;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; color:var(--sub); margin-bottom:5px;}
+  .field input[type=text]{
+    width:100%; padding:9px 10px; border-radius:7px; border:1px solid var(--line);
+    background:var(--bg); color:var(--ink); font-family:inherit; font-size:14px;
+  }
+  .field input[type=text]:focus, .dropwrap select:focus{ outline:2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset:1px; }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+  .bcrow{display:flex; gap:6px;}
+  .bcrow input{flex:1;}
+  .genbtn{
+    flex:0 0 auto; border-radius:7px; border:none; cursor:pointer; white-space:nowrap;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--accent-ink);
+    font-size:12.5px; font-weight:700; padding:0 14px;
+    box-shadow:0 6px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .genbtn:hover{filter:brightness(1.06);}
+  .microhint{font-size:11px; color:var(--sub); margin-top:5px;}
+
+  .dropwrap{display:flex; gap:6px;}
+  .selwrap{ position:relative; flex:1; min-width:0; }
+  .selwrap::after{
+    content:""; position:absolute; right:13px; top:50%; width:7px; height:7px;
+    border-right:2px solid var(--sub); border-bottom:2px solid var(--sub);
+    transform:translateY(-65%) rotate(45deg); pointer-events:none;
+  }
+  .dropwrap select{
+    width:100%; appearance:none; -webkit-appearance:none;
+    padding:9px 32px 9px 10px; border-radius:7px; border:1px solid var(--line);
+    background:var(--bg); color:var(--ink); font-family:inherit; font-size:13.5px;
+  }
+  .addbtn{
+    width:34px; flex:0 0 34px; border-radius:7px; border:1px solid var(--accent);
+    background:transparent; color:var(--accent); font-size:17px; line-height:1; cursor:pointer;
+  }
+  .addbtn:hover{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--accent-ink); border-color:transparent;}
+  .addrow{display:none; gap:6px; margin-top:6px;}
+  .addrow.open{display:flex;}
+  .addrow input{flex:1; padding:8px 9px; border-radius:7px; border:1px solid var(--accent); background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
+  .addrow button{border:none; border-radius:7px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--accent-ink); font-size:12.5px; padding:0 10px; font-weight:700; cursor:pointer;}
+
+  ::placeholder{ color:var(--sub); opacity:.4; }
+  .delrow{display:none; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center;}
+  .delrow.open{display:flex;}
+  .delchip{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--accent); border-radius:999px; padding:3px 6px 3px 10px; font-size:12px; background:var(--bg); color:var(--ink);}
+  .delchip button{border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:13px; line-height:1; padding:0 2px;}
+  .donebtn{border:none; border-radius:7px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--accent-ink); font-size:12px; padding:5px 10px; font-weight:700; cursor:pointer;}
+  .bccode.empty{ color:#999; }
+  .histlast{font-size:13px; margin-bottom:10px;}
+  .histlast strong{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:15px;}
+  #histList{max-height:320px; overflow-y:auto;}
+  .histrow{display:flex; align-items:center; gap:12px; padding:9px 4px; border-top:1px solid var(--line);}
+  .histrow .code{font-family:'JetBrains Mono',ui-monospace,monospace; font-weight:700; font-size:14px; min-width:84px;}
+  .histrow .time{font-size:11.5px; color:var(--sub); min-width:112px;}
+  .histrow .det{flex:1; font-size:12.5px; color:var(--sub); min-width:0; overflow-wrap:anywhere;}
+  .histempty{font-size:12.5px; color:var(--sub);}
+  .sync{font-size:12px; color:var(--sub); margin-top:6px;}
+  .hint{font-size:11.5px; color:var(--sub); margin-top:16px; line-height:1.5;}
+
+  .previewhead{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
+  .previewhead span{font-size:11.5px; color:var(--sub);}
+  .stage{display:flex; justify-content:center; padding:6px 0 4px;}
+
+  /* ---- label, 2in wide x 3in tall ---- */
+  .sticker{
+    width:280px; aspect-ratio:2/3;
+    background:var(--stock); color:var(--stock-ink);
+    border:1px solid #ccc; border-radius:2px;
+    display:flex; flex-direction:column; justify-content:flex-start; padding:10px 8px 10px;
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    box-shadow:0 16px 34px -14px rgba(0,0,0,.4);
+  }
+  .bcbox{ padding:0; text-align:center; }               /* box removed */
+  .bcbox svg{ width:100%; height:95px; display:block; } /* taller, full width */
+  .bccode{ font-size:13px; letter-spacing:.1em; margin-top:4px; }
+  .datedate{ text-align:right; font-size:10.5px; letter-spacing:.05em; margin:6px 2px 0; }
+
+  .mtrrow{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .mtrrow .lab{ font-size:13px; letter-spacing:.04em; }
+  .mtrrow .box{ border:1px solid var(--stock-ink); flex:1; max-width:60%; padding:5px 8px; font-size:13px; font-weight:700; min-height:1.4em; }
+
+  .fieldgrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .fbox{
+    border:1px solid var(--stock-ink); height:3.5em; padding:4px 7px; text-align:center;
+    font-size:12px; font-weight:700; line-height:1.2; word-break:break-word;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .fbox.empty{ color:#999; font-weight:400; }
+
+  .actions{display:flex; justify-content:center; margin-top:18px;}
+  .printBtn{
+    border-radius:9px; padding:11px 22px; font-size:13.5px; font-weight:700; cursor:pointer; border:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--accent-ink);
+    box-shadow:0 10px 22px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .printBtn:hover{filter:brightness(1.05);}
+  .dims{text-align:center; font-size:11.5px; color:var(--sub); margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Label Generator</h1>
+  <div class="bar"></div>
+  <p>Fill in the data on the left — the label on the right builds itself, ready to print at 2in × 3in.</p>
+  <div class="sync" id="syncStatus"></div>
+</header>
+
+<main>
+  <section class="card left">
+    <h2>Label data</h2>
+
+    <div class="field">
+      <label>Barcode value</label>
+      <div class="bcrow">
+        <input type="text" id="f_barcode" placeholder="e.g. 0926001">
+        <button class="genbtn" id="genBtn" type="button">Generate next</button>
+      </div>
+      <div class="microhint">Format: month(2) + year(2) + running no.(3) — e.g. 0926001, then 0926002. Type your own to override.</div>
+    </div>
+
+    <div class="field">
+      <label>MTR</label>
+      <input type="text" id="f_mtr" placeholder="e.g. 42.5">
+    </div>
+
+    <div class="row2" style="margin-bottom:14px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Category</label>
+        <div class="dropwrap">
+          <div class="selwrap"><select id="f_category"></select></div>
+          <button class="addbtn" data-target="category" type="button">+</button>
+        </div>
+        <div class="addrow" id="add_category">
+          <input type="text" placeholder="New…" id="input_category">
+          <button type="button" data-save="category">Add</button>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Pattern</label>
+        <div class="dropwrap">
+          <div class="selwrap"><select id="f_pattern"></select></div>
+          <button class="addbtn" data-target="pattern" type="button">+</button>
+        </div>
+        <div class="addrow" id="add_pattern">
+          <input type="text" placeholder="New…" id="input_pattern">
+          <button type="button" data-save="pattern">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Color</label>
+      <div class="dropwrap">
+        <div class="selwrap"><select id="f_color"></select></div>
+        <button class="addbtn" data-target="color" type="button">+</button>
+      </div>
+      <div class="addrow" id="add_color">
+        <input type="text" placeholder="New color…" id="input_color">
+        <button type="button" data-save="color">Add</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Supplier</label>
+      <div class="dropwrap">
+        <div class="selwrap"><select id="f_supplier"></select></div>
+        <button class="addbtn" data-target="supplier" type="button">+</button>
+      </div>
+      <div class="addrow" id="add_supplier">
+        <input type="text" placeholder="New supplier…" id="input_supplier">
+        <button type="button" data-save="supplier">Add</button>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label>Rate</label><input type="text" id="f_rate" placeholder="e.g. 185"></div>
+      <div class="field"><label>Card no.</label><input type="text" id="f_card" placeholder="e.g. CD-118"></div>
+    </div>
+
+    <p class="hint">Category, Pattern, Color and Supplier: click <strong>+</strong> to add a value; choose <strong>Delete an option…</strong> in the dropdown to remove one. Changes are saved in this browser. Rate, Card, MTR and the barcode stay free-typed since they change per roll.</p>
+  </section>
+
+  <section class="card right">
+    <div class="previewhead">
+      <h2 style="margin:0;">Label preview</h2>
+      <span>Actual size: 2in × 3in</span>
+    </div>
+    <div class="stage">
+      <div class="sticker" id="sticker">
+        <div class="bcbox"><svg id="barcodeSvg"></svg><div class="bccode" id="bcCodeText">—</div></div>
+        <div class="datedate" id="p_date">—</div>
+        <div class="mtrrow"><span class="lab">MTR :</span><div class="box" id="p_mtr">—</div></div>
+        <div class="fieldgrid">
+          <div class="fbox" id="p_category">—</div>
+          <div class="fbox" id="p_pattern">—</div>
+          <div class="fbox" id="p_color">—</div>
+          <div class="fbox" id="p_supplier">—</div>
+          <div class="fbox" id="p_rate">—</div>
+          <div class="fbox" id="p_card">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="dims">Actual print size: 2in × 3in</div>
+    <div class="actions">
+      <button type="button" class="printBtn" id="printBtn">Print label</button>
+    </div>
+  </section>
+  <section class="card" id="histCard" style="grid-column:1/-1;">
+    <div class="previewhead">
+      <h2 style="margin:0;">Print history</h2>
+      <button type="button" class="donebtn" id="clearHist">Clear all</button>
+    </div>
+    <div class="histlast" id="histLast"></div>
+    <div id="histList"></div>
+  </section>
+</main>
+
+<script>
+// Paste your Google Apps Script Web app URL between the quotes (see setup steps).
+// Leave empty to keep data only in this browser.
+const SHEET_URL = '';
+
+const GROUPS = {
+  category: { seed: ["T-Shirt","Shirt","Trouser","Saree"] },
+  pattern:  { seed: ["Solid","Printed","Striped","Checked"] },
+  color:    { seed: ["Black","White","Navy","Maroon"] },
+  supplier: { seed: ["Rangoli Textiles","Om Fabrics"] }
+};
+
+function loadList(key){
+  const raw = localStorage.getItem('label_'+key);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return GROUPS[key].seed.slice();
+}
+function saveList(key, list){ try{ localStorage.setItem('label_'+key, JSON.stringify(list)); }catch(e){} }
+
+const DEL = '__delete__';
+
+function renderSelect(key){
+  const list = loadList(key);
+  const sel = document.getElementById('f_'+key);
+  const current = sel.dataset.prev || '';
+  sel.innerHTML = '';
+  const addOpt = (val, text) => { const o = document.createElement('option'); o.value = val; o.textContent = text; sel.appendChild(o); };
+  addOpt('', 'Select…');
+  list.forEach(v => addOpt(v, v));
+  addOpt(DEL, '🗑 Delete an option…');
+  sel.value = list.includes(current) ? current : '';
+  sel.dataset.prev = sel.value;
+}
+
+function openDelete(key){
+  const box = document.getElementById('del_'+key);
+  const list = loadList(key);
+  box.innerHTML = '';
+  if(!list.length){ box.appendChild(document.createTextNode('Nothing to delete.')); }
+  list.forEach(v=>{
+    const chip = document.createElement('span'); chip.className = 'delchip';
+    chip.appendChild(document.createTextNode(v));
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = '✕'; b.title = 'Delete ' + v;
+    b.addEventListener('click', ()=>{
+      saveList(key, loadList(key).filter(x => x !== v));
+      post({action:'deleteOption', type:key, value:v});
+      const sel = document.getElementById('f_'+key);
+      if(sel.dataset.prev === v) sel.dataset.prev = '';
+      renderSelect(key); updatePreview(); openDelete(key);
+    });
+    chip.appendChild(b); box.appendChild(chip);
+  });
+  const done = document.createElement('button'); done.type = 'button'; done.className = 'donebtn'; done.textContent = 'Done';
+  done.addEventListener('click', ()=> box.classList.remove('open'));
+  box.appendChild(done);
+  box.classList.add('open');
+}
+
+Object.keys(GROUPS).forEach(key=>{
+  renderSelect(key);
+  const box = document.createElement('div'); box.className = 'delrow'; box.id = 'del_'+key;
+  document.getElementById('add_'+key).after(box);
+  const sel = document.getElementById('f_'+key);
+  sel.addEventListener('change', ()=>{
+    if(sel.value === DEL){ sel.value = sel.dataset.prev || ''; openDelete(key); updatePreview(); return; }
+    sel.dataset.prev = sel.value;
+  });
+});
+
+document.querySelectorAll('.addbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const key = btn.dataset.target;
+    const row = document.getElementById('add_'+key);
+    row.classList.toggle('open');
+    if(row.classList.contains('open')) document.getElementById('input_'+key).focus();
+  });
+});
+
+document.querySelectorAll('[data-save]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const key = btn.dataset.save;
+    const input = document.getElementById('input_'+key);
+    const val = input.value.trim();
+    if(!val) return;
+    const list = loadList(key);
+    if(!list.includes(val)) list.push(val);
+    saveList(key, list);
+    post({action:'addOption', type:key, value:val});
+    renderSelect(key);
+    document.getElementById('f_'+key).value = val;
+    document.getElementById('f_'+key).dataset.prev = val;
+    input.value = '';
+    document.getElementById('add_'+key).classList.remove('open');
+    updatePreview();
+  });
+});
+
+function pad(n,len){ return String(n).padStart(len,'0'); }
+function currentMMYY(){
+  const d = new Date();
+  return pad(d.getMonth()+1,2) + pad(d.getFullYear()%100,2);
+}
+function nextBarcode(){
+  // MM + YY + 3-digit running number (starts at 001 each new month)
+  const prefix = currentMMYY();
+  const cur = document.getElementById('f_barcode').value.trim();
+  const counterKey = 'barcode_seq_' + prefix;
+  let last;
+  if(/^\d{7}$/.test(cur)) last = parseInt(cur.slice(-3),10);
+  else last = parseInt(localStorage.getItem(counterKey)||'0',10);
+  let seq = last + 1; if(seq > 999) seq = 1;
+  try{ localStorage.setItem(counterKey, String(seq)); }catch(e){}
+  return prefix + pad(seq,3);
+}
+document.getElementById('genBtn').addEventListener('click', ()=>{
+  document.getElementById('f_barcode').value = nextBarcode();
+  updatePreview();
+});
+
+function todayStr(){
+  const d = new Date();
+  return pad(d.getDate(),2)+'/'+pad(d.getMonth()+1,2)+'/'+d.getFullYear();
+}
+
+function setBox(id, val, placeholder){
+  const el = document.getElementById(id);
+  if(val && val.trim()){ el.textContent = val; el.classList.remove('empty'); }
+  else { el.textContent = placeholder; el.classList.add('empty'); }
+}
+
+const C128_PATTERNS = [
+  "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+  "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+  "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+  "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+  "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+  "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+  "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+  "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+  "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+  "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+  "114131","311141","411131","211412","211214","211232","2331112"
+];
+
+function encodeCode128B(str){
+  const codes = [104]; // Start Code B
+  for(const ch of String(str)){
+    const v = ch.charCodeAt(0) - 32;
+    if(v >= 0 && v <= 94) codes.push(v);
+  }
+  let checksum = codes[0];
+  for(let i=1;i<codes.length;i++) checksum += codes[i]*i;
+  codes.push(checksum % 103);
+  codes.push(106); // Stop
+  return codes;
+}
+
+function renderCode128(svgEl, value){
+  const NS = 'http://www.w3.org/2000/svg';
+  while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  const codes = encodeCode128B(value || ' ');
+  let total = 0;
+  const parts = [];
+  codes.forEach(c=>{
+    const pattern = C128_PATTERNS[c];
+    for(let i=0;i<pattern.length;i++){
+      const w = parseInt(pattern[i],10);
+      parts.push({w, isBar: i % 2 === 0});
+      total += w;
+    }
+  });
+  // -10 / +20 keeps blank space on both sides so scanners can read it
+  svgEl.setAttribute('viewBox', `-10 0 ${total + 20} 40`);
+  svgEl.setAttribute('preserveAspectRatio','none');
+  let x = 0;
+  parts.forEach(p=>{
+    if(p.isBar){
+      const rect = document.createElementNS(NS,'rect');
+      rect.setAttribute('x', x); rect.setAttribute('y', 0);
+      rect.setAttribute('width', p.w); rect.setAttribute('height', 40);
+      rect.setAttribute('fill', '#000');
+      svgEl.appendChild(rect);
+    }
+    x += p.w;
+  });
+}
+
+function drawBarcode(){
+  const val = document.getElementById('f_barcode').value.trim();
+  const svg = document.getElementById('barcodeSvg');
+  const txt = document.getElementById('bcCodeText');
+  if(!val){
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    txt.textContent = '—'; txt.classList.add('empty'); return;
+  }
+  renderCode128(svg, val);
+  txt.textContent = val; txt.classList.remove('empty');
+}
+
+function updatePreview(){
+  drawBarcode();
+  document.getElementById('p_date').textContent = todayStr();
+  setBox('p_mtr', document.getElementById('f_mtr').value, '—');
+  const sv = id => { const v = document.getElementById(id).value; return v === DEL ? '' : v; };
+  setBox('p_category', sv('f_category'), '—');
+  setBox('p_pattern', sv('f_pattern'), '—');
+  setBox('p_color', sv('f_color'), '—');
+  setBox('p_supplier', sv('f_supplier'), '—');
+  setBox('p_rate', document.getElementById('f_rate').value ? ('₹'+document.getElementById('f_rate').value) : '', '—');
+  setBox('p_card', document.getElementById('f_card').value, '—');
+}
+
+document.querySelectorAll('#f_barcode,#f_mtr,#f_rate,#f_category,#f_pattern,#f_color,#f_supplier,#f_card')
+  .forEach(el => el.addEventListener('input', updatePreview));
+
+updatePreview();
+window.addEventListener('load', updatePreview);
+
+/* ---------- print history ---------- */
+const HIST_KEY = 'label_history';
+function loadHist(){ try{ return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); }catch(e){ return []; } }
+function saveHist(l){ try{ localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(0,300))); }catch(e){} }
+function fmtTime(ts){
+  const d = new Date(ts);
+  return pad(d.getDate(),2)+'/'+pad(d.getMonth()+1,2)+'/'+d.getFullYear()+' '+pad(d.getHours(),2)+':'+pad(d.getMinutes(),2);
+}
+function addHistory(){
+  const g = id => document.getElementById(id).value;
+  const code = g('f_barcode').trim();
+  if(!code) return;
+  const l = loadHist();
+  const entry = { code, ts:Date.now(), mtr:g('f_mtr'), category:g('f_category'), pattern:g('f_pattern'),
+                  color:g('f_color'), supplier:g('f_supplier'), rate:g('f_rate'), card:g('f_card') };
+  l.unshift(entry);
+  saveHist(l);
+  renderHistory();
+  post({action:'addHistory', entry});
+}
+function useHistory(e){
+  const set = (id,val) => {
+    const el = document.getElementById(id);
+    if(el.tagName === 'SELECT'){
+      if(![...el.options].some(o => o.value === val)){
+        if(!val) val = '';
+        else { const o = document.createElement('option'); o.value = val; o.textContent = val; el.insertBefore(o, el.lastElementChild); }
+      }
+      el.value = val; el.dataset.prev = val;
+    } else el.value = val;
+  };
+  set('f_barcode', e.code); set('f_mtr', e.mtr||''); set('f_category', e.category||''); set('f_pattern', e.pattern||'');
+  set('f_color', e.color||''); set('f_supplier', e.supplier||''); set('f_rate', e.rate||''); set('f_card', e.card||'');
+  updatePreview();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function renderHistory(){
+  const l = loadHist();
+  const last = document.getElementById('histLast');
+  const list = document.getElementById('histList');
+  last.innerHTML = ''; list.innerHTML = '';
+  if(!l.length){
+    const d = document.createElement('div'); d.className = 'histempty'; d.textContent = 'No labels printed yet.';
+    list.appendChild(d); return;
+  }
+  last.appendChild(document.createTextNode('Last printed barcode: '));
+  const st = document.createElement('strong'); st.textContent = l[0].code; last.appendChild(st);
+  last.appendChild(document.createTextNode('  (' + fmtTime(l[0].ts) + ')'));
+  l.forEach(e=>{
+    const row = document.createElement('div'); row.className = 'histrow';
+    const c = document.createElement('div'); c.className = 'code'; c.textContent = e.code;
+    const t = document.createElement('div'); t.className = 'time'; t.textContent = fmtTime(e.ts);
+    const d = document.createElement('div'); d.className = 'det';
+    d.textContent = [e.category, e.pattern, e.color, e.supplier, e.mtr ? e.mtr+' MTR' : '', e.rate ? '₹'+e.rate : '', e.card].filter(Boolean).join(' · ');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'donebtn'; b.textContent = 'Use';
+    b.addEventListener('click', ()=> useHistory(e));
+    row.append(c, t, d, b); list.appendChild(row);
+  });
+}
+document.getElementById('clearHist').addEventListener('click', ()=>{
+  if(confirm('Clear all print history?')){ saveHist([]); renderHistory(); post({action:'clearHistory'}); }
+});
+renderHistory();
+
+/* ---------- Google Sheet sync ---------- */
+function setStatus(t){ document.getElementById('syncStatus').textContent = t; }
+
+async function post(payload){
+  if(!SHEET_URL) return;
+  try{
+    setStatus('Saving to Google Sheet…');
+    const r = await fetch(SHEET_URL, { method:'POST', body:JSON.stringify(payload) });
+    const j = await r.json();
+    setStatus(j.ok ? 'Synced with Google Sheet ✓' : 'Sheet error: ' + (j.error||'unknown'));
+  }catch(e){
+    setStatus('Offline — saved on this device only');
+  }
+}
+
+async function pull(){
+  if(!SHEET_URL){ setStatus('Not connected to Google Sheet (data stays on this device)'); return; }
+  try{
+    setStatus('Loading from Google Sheet…');
+    const r = await fetch(SHEET_URL);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+
+    if(d.optionsCount === 0){
+      // sheet is empty: upload what this device has (first-time setup)
+      const lists = {};
+      Object.keys(GROUPS).forEach(k => lists[k] = loadList(k));
+      await post({action:'seedOptions', lists});
+    } else {
+      Object.keys(GROUPS).forEach(k=>{
+        saveList(k, (d.options && d.options[k]) || []);
+        renderSelect(k);
+      });
+    }
+
+    const local = loadHist();
+    if((d.history||[]).length === 0 && local.length){
+      await post({action:'seedHistory', entries: local.slice().reverse()});
+    } else {
+      saveHist(d.history || []);
+      renderHistory();
+    }
+    updatePreview();
+    setStatus('Synced with Google Sheet ✓');
+  }catch(e){
+    setStatus('Offline — showing data saved on this device');
+  }
+}
+pull();
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pull(); });
+
+document.getElementById('printBtn').addEventListener('click', ()=>{
+  addHistory();
+  const w = window.open('', '_blank', 'width=380,height=520');
+  const html = document.getElementById('sticker').outerHTML;
+  const styles = [...document.querySelectorAll('style')].map(s => s.outerHTML).join('');
+  w.document.write(`<!DOCTYPE html><html><head><title>Print label</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    ${styles}
+    <style>
+      @page{ size:2in 3in; margin:0; }
+      html,body{ margin:0; padding:0; background:#fff !important; width:2in; height:3in; overflow:hidden; }
+      .sticker{
+        width:280px; height:420px;
+        transform:scale(0.6857); transform-origin:0 0;   /* 280px -> 2in */
+        border:none !important; box-shadow:none !important; border-radius:0;
+      }
+    </style></head><body>${html}</body></html>`);
+  w.document.close();
+  const go = () => setTimeout(()=>w.print(), 400);
+  (w.document.fonts && w.document.fonts.ready) ? w.document.fonts.ready.then(go) : setTimeout(()=>w.print(), 900);
+});
+</script>
+</body>
+</html>
