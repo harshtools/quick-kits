@@ -501,7 +501,7 @@ function addHistory(){
   const code = g('f_barcode').trim();
   if(!code) return;
   const l = loadHist();
-  const entry = { code, ts:Date.now(), mtr:g('f_mtr'), category:g('f_category'), pattern:g('f_pattern'),
+  const entry = { code, ts:Date.now(), when:fmtTime(Date.now()), mtr:g('f_mtr'), category:g('f_category'), pattern:g('f_pattern'),
                   color:g('f_color'), supplier:g('f_supplier'), rate:g('f_rate'), card:g('f_card') };
   l.unshift(entry);
   saveHist(l);
@@ -535,11 +535,11 @@ function renderHistory(){
   }
   last.appendChild(document.createTextNode('Last printed barcode: '));
   const st = document.createElement('strong'); st.textContent = l[0].code; last.appendChild(st);
-  last.appendChild(document.createTextNode('  (' + fmtTime(l[0].ts) + ')'));
+  last.appendChild(document.createTextNode('  (' + (l[0].when || fmtTime(l[0].ts)) + ')'));
   l.forEach(e=>{
     const row = document.createElement('div'); row.className = 'histrow';
     const c = document.createElement('div'); c.className = 'code'; c.textContent = e.code;
-    const t = document.createElement('div'); t.className = 'time'; t.textContent = fmtTime(e.ts);
+    const t = document.createElement('div'); t.className = 'time'; t.textContent = e.when || fmtTime(e.ts);
     const d = document.createElement('div'); d.className = 'det';
     d.textContent = [e.category, e.pattern, e.color, e.supplier, e.mtr ? e.mtr+' MTR' : '', e.rate ? '₹'+e.rate : '', e.card].filter(Boolean).join(' · ');
     const b = document.createElement('button'); b.type = 'button'; b.className = 'donebtn'; b.textContent = 'Use';
@@ -589,7 +589,7 @@ async function pull(){
 
     const local = loadHist();
     if((d.history||[]).length === 0 && local.length){
-      await post({action:'seedHistory', entries: local.slice().reverse()});
+      await post({action:'seedHistory', entries: local.slice().reverse().map(e => Object.assign({when: fmtTime(e.ts)}, e))});
     } else {
       saveHist(d.history || []);
       renderHistory();
