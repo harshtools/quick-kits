@@ -160,11 +160,19 @@
   }
   .scan-input:focus{border-color:#ff9d6c;box-shadow:0 0 0 4px rgba(255,157,108,0.22);}
   .scan-input.tracking:focus{border-color:#4f8ef7;box-shadow:0 0 0 4px rgba(79,142,247,0.2);}
+  .scan-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-right:110px;}
+  .scan-top .scan-prompt{margin-bottom:0;}
+  .track-only-btn{display:none;margin-left:auto;font-size:12px;padding:6px 14px;}
+  .scan-card.other-mode .track-only-btn{display:inline-block;}
+  .track-only-btn.active{background:linear-gradient(135deg,#7c6cf5,#4f8ef7);color:#fff;border-color:transparent;}
   .other-only{display:none;}
   .scan-card.other-mode .other-only{display:block;}
   .box-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 5px;}
   .box-label span{font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-faint);}
-  .track-wrap{margin-top:12px;}
+  .scan-col{min-width:0;}
+  .scan-card.other-mode .scan-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+  .scan-card.other-mode .scan-input{font-size:18px;}
+  @media (max-width:760px){ .scan-card.other-mode .scan-row{grid-template-columns:1fr;} }
   .scan-input[readonly]{background:rgba(124,108,246,0.10);border-color:rgba(124,108,246,0.35);}
   .scan-hint{margin-top:10px;font-size:11px;color:var(--text-faint);}
   .pending-chip{
@@ -351,14 +359,21 @@
 
     <div class="scan-card glass-card" id="scanCard">
       <div class="mode-flag">Other mode</div>
-      <div class="scan-prompt" id="scanPromptLabel">Scan Order ID</div>
-      <div class="box-label other-only">Order ID</div>
-      <input type="text" class="scan-input mono" id="scanInput" placeholder="Waiting for scan…" autocomplete="off" autofocus>
-      <div class="track-wrap other-only">
-        <div class="box-label">Tracking ID <span>(have only tracking? scan it here)</span></div>
-        <input type="text" class="scan-input mono tracking" id="trackInput" placeholder="Tracking ID…" autocomplete="off">
-        <button class="btn ghost" id="redoOrderBtn" style="display:none;margin-top:8px;">Clear Order ID (Esc)</button>
+      <div class="scan-top">
+        <div class="scan-prompt" id="scanPromptLabel">Scan Order ID</div>
+        <button class="btn ghost track-only-btn" id="trackOnlyBtn">Tracking only</button>
       </div>
+      <div class="scan-row">
+        <div class="scan-col">
+          <div class="box-label other-only">Order ID</div>
+          <input type="text" class="scan-input mono" id="scanInput" placeholder="Waiting for scan…" autocomplete="off" autofocus>
+        </div>
+        <div class="scan-col track-wrap other-only">
+          <div class="box-label">Tracking ID <span>(only tracking? scan here)</span></div>
+          <input type="text" class="scan-input mono tracking" id="trackInput" placeholder="Tracking ID…" autocomplete="off">
+        </div>
+      </div>
+      <button class="btn ghost" id="redoOrderBtn" style="display:none;margin-top:10px;">Clear Order ID (Esc)</button>
       <div class="scan-hint" id="scanHint">Order IDs start with <b>JE</b>. Scanner input is read on Enter.</div>
       <div class="pending-chip" id="pendingChip" style="display:none;">Order ID captured — <b class="mono" id="pendingOrderText"></b> — now scan its tracking ID</div>
 
@@ -574,6 +589,7 @@
     scanState: 'awaiting_order',
     pendingOrderId: null,
     scanMode: 'Regular',
+    trackingOnly: false,
     connected: false,
     search: { session: '', sync: '', review: '', hold: '' }
   };
@@ -744,6 +760,7 @@
       // Switching mode mid-pair would be ambiguous, so reset to awaiting order.
       state.scanState = 'awaiting_order';
       state.pendingOrderId = null;
+      state.trackingOnly = false;
       scanInput.value = '';
       trackInput.value = '';
       document.getElementById('scanHint').innerHTML = state.scanMode === 'Other'
@@ -759,6 +776,8 @@
   var redoOrderBtn = document.getElementById('redoOrderBtn');
   var dismissBtn = document.getElementById('dismissError');
   var confirmAction = null;
+  var trackOnlyBtn = document.getElementById('trackOnlyBtn');
+  var scanHint = document.getElementById('scanHint');
   var scanPromptLabel = document.getElementById('scanPromptLabel');
   var pendingChip = document.getElementById('pendingChip');
   var errorOverlay = document.getElementById('errorOverlay');
@@ -768,7 +787,7 @@
 
   function refocusInput(){
     setTimeout(function(){
-      if(state.scanMode === 'Other' && state.scanState === 'awaiting_tracking'){ trackInput.focus(); }
+      if(state.scanMode === 'Other' && (state.trackingOnly || state.scanState === 'awaiting_tracking')){ trackInput.focus(); }
       else { scanInput.focus(); }
     }, 30);
   }
@@ -865,14 +884,21 @@
     var other = state.scanMode === 'Other';
     var awaitingOrder = state.scanState === 'awaiting_order';
     scanPromptLabel.textContent = awaitingOrder ? 'Scan Order ID' : 'Scan Tracking ID';
-    scanPromptLabel.classList.toggle('tracking', !awaitingOrder);
+    var trackOnly = other && state.trackingOnly;
+    if(trackOnly){ scanPromptLabel.textContent = 'Scan Tracking ID'; }
+    scanPromptLabel.classList.toggle('tracking', !awaitingOrder || trackOnly);
     scanInput.classList.toggle('tracking', !awaitingOrder && !other);
-    scanInput.readOnly = other && !awaitingOrder;
+    scanInput.readOnly = other && (!awaitingOrder || trackOnly);
+    trackOnlyBtn.classList.toggle('active', trackOnly);
+    trackOnlyBtn.textContent = trackOnly ? 'Tracking only: ON' : 'Tracking only';
     if(other){
-      scanInput.placeholder = 'Order ID…';
+      scanHint.innerHTML = trackOnly
+        ? 'Tracking-only mode: scan tracking IDs only. Press the button again to go back to Order ID, then Tracking ID.'
+        : 'Scan the Order ID first — the cursor moves to the Tracking ID box. Order ID must not start with JE.';
+      scanInput.placeholder = trackOnly ? 'Not used in tracking-only mode' : 'Order ID…';
       trackInput.placeholder = 'Tracking ID… (tracking-only is OK)';
       pendingChip.style.display = 'none';
-      redoOrderBtn.style.display = awaitingOrder ? 'none' : 'inline-block';
+      redoOrderBtn.style.display = (awaitingOrder || trackOnly) ? 'none' : 'inline-block';
       if(!awaitingOrder){ scanInput.value = state.pendingOrderId || ''; }
     } else {
       scanInput.placeholder = awaitingOrder ? 'Waiting for Order ID scan…' : 'Waiting for Tracking ID scan…';
@@ -907,7 +933,7 @@
     if(!state.thirdParty) return;
     var value = scanInput.value.trim();
     if(state.scanMode === 'Other'){
-      if(state.scanState !== 'awaiting_order') return;
+      if(state.scanState !== 'awaiting_order' || state.trackingOnly) return;
       scanInput.value = '';
       if(value) handleOtherOrder(value);
       return;
@@ -1017,6 +1043,11 @@
     refocusInput();
   }
   redoOrderBtn.addEventListener('click', resetOtherBoxes);
+  trackOnlyBtn.addEventListener('click', function(){
+    if(state.scanMode !== 'Other') return;
+    state.trackingOnly = !state.trackingOnly;
+    resetOtherBoxes();
+  });
 
   trackInput.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){ resetOtherBoxes(); return; }
