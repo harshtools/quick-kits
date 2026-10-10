@@ -131,7 +131,7 @@
   }
 
   /* ---- Scan view ---- */
-  .scan-card{padding:32px;min-height:340px;position:relative;overflow:hidden;transition:background .2s ease,border-color .2s ease;}
+  .scan-card{padding:20px 26px;min-height:260px;position:relative;overflow:hidden;transition:background .2s ease,border-color .2s ease;}
   .scan-card.other-mode{
     border-color:rgba(124,108,246,0.5);
     background:linear-gradient(180deg, rgba(124,108,246,0.14), var(--glass-strong) 60%);
@@ -148,18 +148,24 @@
   .scan-card.other-mode .mode-flag{display:inline-block;}
   .scan-prompt{
     display:inline-block;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
-    padding:6px 14px;border-radius:999px;color:#fff;background:var(--grad-order);margin-bottom:16px;
+    padding:6px 14px;border-radius:999px;color:#fff;background:var(--grad-order);margin-bottom:10px;
     transition:background .15s ease;
   }
   .scan-prompt.tracking{background:var(--grad-tracking);}
   .scan-input{
-    width:100%;font-size:26px;font-weight:600;
+    width:100%;font-size:22px;font-weight:600;
     background:rgba(255,255,255,0.6);border:2px solid rgba(255,255,255,0.8);border-radius:var(--radius-md);
-    color:var(--text);padding:16px 18px;letter-spacing:.02em;outline:none;
+    color:var(--text);padding:12px 16px;letter-spacing:.02em;outline:none;
     box-shadow:0 0 0 0 rgba(255,157,108,0);transition:box-shadow .15s ease,border-color .15s ease;
   }
   .scan-input:focus{border-color:#ff9d6c;box-shadow:0 0 0 4px rgba(255,157,108,0.22);}
   .scan-input.tracking:focus{border-color:#4f8ef7;box-shadow:0 0 0 4px rgba(79,142,247,0.2);}
+  .other-only{display:none;}
+  .scan-card.other-mode .other-only{display:block;}
+  .box-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 5px;}
+  .box-label span{font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-faint);}
+  .track-wrap{margin-top:12px;}
+  .scan-input[readonly]{background:rgba(124,108,246,0.10);border-color:rgba(124,108,246,0.35);}
   .scan-hint{margin-top:10px;font-size:11px;color:var(--text-faint);}
   .pending-chip{
     display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:12px;color:var(--text-dim);
@@ -346,8 +352,14 @@
     <div class="scan-card glass-card" id="scanCard">
       <div class="mode-flag">Other mode</div>
       <div class="scan-prompt" id="scanPromptLabel">Scan Order ID</div>
+      <div class="box-label other-only">Order ID</div>
       <input type="text" class="scan-input mono" id="scanInput" placeholder="Waiting for scan…" autocomplete="off" autofocus>
-      <div class="scan-hint">Order IDs start with <b>JE</b>. Scanner input is read on Enter.</div>
+      <div class="track-wrap other-only">
+        <div class="box-label">Tracking ID <span>(have only tracking? scan it here)</span></div>
+        <input type="text" class="scan-input mono tracking" id="trackInput" placeholder="Tracking ID…" autocomplete="off">
+        <button class="btn ghost" id="redoOrderBtn" style="display:none;margin-top:8px;">Clear Order ID (Esc)</button>
+      </div>
+      <div class="scan-hint" id="scanHint">Order IDs start with <b>JE</b>. Scanner input is read on Enter.</div>
       <div class="pending-chip" id="pendingChip" style="display:none;">Order ID captured — <b class="mono" id="pendingOrderText"></b> — now scan its tracking ID</div>
 
       <div class="error-overlay" id="errorOverlay">
@@ -642,7 +654,7 @@
       item.classList.add('active');
       document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
       document.getElementById('view-' + item.dataset.view).classList.add('active');
-      if(item.dataset.view === 'scan'){ scanInput.focus(); }
+      if(item.dataset.view === 'scan'){ refocusInput(); }
       if(item.dataset.view === 'sync'){ renderSyncView(); }
       if(item.dataset.view === 'review'){ renderReviewView(); }
       if(item.dataset.view === 'hold'){ renderHoldView(); }
@@ -732,12 +744,21 @@
       // Switching mode mid-pair would be ambiguous, so reset to awaiting order.
       state.scanState = 'awaiting_order';
       state.pendingOrderId = null;
+      scanInput.value = '';
+      trackInput.value = '';
+      document.getElementById('scanHint').innerHTML = state.scanMode === 'Other'
+        ? 'Scan the Order ID first — the cursor moves to the Tracking ID box. Order ID must not start with JE.'
+        : 'Order IDs start with <b>JE</b>. Scanner input is read on Enter.';
       updateScanPrompt();
       refocusInput();
     });
   });
 
   var scanInput = document.getElementById('scanInput');
+  var trackInput = document.getElementById('trackInput');
+  var redoOrderBtn = document.getElementById('redoOrderBtn');
+  var dismissBtn = document.getElementById('dismissError');
+  var confirmAction = null;
   var scanPromptLabel = document.getElementById('scanPromptLabel');
   var pendingChip = document.getElementById('pendingChip');
   var errorOverlay = document.getElementById('errorOverlay');
@@ -746,7 +767,10 @@
   var errorHoldRow = null; // set when the current error is a hold-list match
 
   function refocusInput(){
-    setTimeout(function(){ scanInput.focus(); }, 30);
+    setTimeout(function(){
+      if(state.scanMode === 'Other' && state.scanState === 'awaiting_tracking'){ trackInput.focus(); }
+      else { scanInput.focus(); }
+    }, 30);
   }
 
   function showError(msg, holdRow){
@@ -754,29 +778,71 @@
     errorMsg.scrollTop = 0;
     errorOverlay.classList.add('show');
     scanInput.disabled = true;
+    trackInput.disabled = true;
+    confirmAction = null;
+    dismissBtn.textContent = 'Dismiss';
+    pulledBtn.textContent = 'Pulled — mark resolved';
     errorHoldRow = holdRow || null;
     pulledBtn.style.display = errorHoldRow ? 'inline-block' : 'none';
     if(errorHoldRow) beepHold(); else beepError();
   }
 
+  // Warning with Cancel / Continue anyway (used in Amazon mode when the Order ID is not in the sheet)
+  function showConfirm(msg, yesFn){
+    errorMsg.textContent = msg;
+    errorMsg.scrollTop = 0;
+    errorOverlay.classList.add('show');
+    scanInput.disabled = true;
+    trackInput.disabled = true;
+    errorHoldRow = null;
+    confirmAction = yesFn;
+    dismissBtn.textContent = 'Cancel';
+    pulledBtn.textContent = 'Continue anyway';
+    pulledBtn.style.display = 'inline-block';
+    beepError();
+  }
+
+  function showHoldError(holdMatch, value){
+    showError('HOLD — pull this label:\n' + value +
+      '\nAdded by: ' + holdMatch.name +
+      (holdMatch.note ? ('\nNote: ' + holdMatch.note) : ''), holdMatch.row);
+  }
+
   function applyScanLockState(){
-    scanInput.disabled = errorOverlay.classList.contains('show') || !state.thirdParty;
+    var locked = errorOverlay.classList.contains('show') || !state.thirdParty;
+    scanInput.disabled = locked;
+    trackInput.disabled = locked;
     updateScanPrompt();
   }
 
   function closeErrorAndReset(){
     errorOverlay.classList.remove('show');
-    applyScanLockState();
     errorHoldRow = null;
+    confirmAction = null;
+    dismissBtn.textContent = 'Dismiss';
+    pulledBtn.textContent = 'Pulled — mark resolved';
     state.scanState = 'awaiting_order';
     state.pendingOrderId = null;
-    updateScanPrompt();
+    scanInput.value = '';
+    trackInput.value = '';
+    applyScanLockState();
     refocusInput();
   }
 
-  document.getElementById('dismissError').addEventListener('click', closeErrorAndReset);
+  dismissBtn.addEventListener('click', closeErrorAndReset);
 
   pulledBtn.addEventListener('click', function(){
+    if(confirmAction){
+      var yes = confirmAction;
+      confirmAction = null;
+      errorOverlay.classList.remove('show');
+      dismissBtn.textContent = 'Dismiss';
+      pulledBtn.textContent = 'Pulled — mark resolved';
+      pulledBtn.style.display = 'none';
+      applyScanLockState();
+      yes();
+      return;
+    }
     var row = errorHoldRow;
     pulledBtn.disabled = true; pulledBtn.textContent = 'Marking…';
     (row ? apiPost({ action: 'resolveHold', row: row }) : Promise.resolve({ok:true})).then(function(res){
@@ -796,21 +862,28 @@
   });
 
   function updateScanPrompt(){
-    if(state.scanState === 'awaiting_order'){
-      scanPromptLabel.textContent = 'Scan Order ID';
-      scanPromptLabel.classList.remove('tracking');
-      scanInput.classList.remove('tracking');
-      scanInput.placeholder = 'Waiting for Order ID scan…';
+    var other = state.scanMode === 'Other';
+    var awaitingOrder = state.scanState === 'awaiting_order';
+    scanPromptLabel.textContent = awaitingOrder ? 'Scan Order ID' : 'Scan Tracking ID';
+    scanPromptLabel.classList.toggle('tracking', !awaitingOrder);
+    scanInput.classList.toggle('tracking', !awaitingOrder && !other);
+    scanInput.readOnly = other && !awaitingOrder;
+    if(other){
+      scanInput.placeholder = 'Order ID…';
+      trackInput.placeholder = 'Tracking ID… (tracking-only is OK)';
       pendingChip.style.display = 'none';
+      redoOrderBtn.style.display = awaitingOrder ? 'none' : 'inline-block';
+      if(!awaitingOrder){ scanInput.value = state.pendingOrderId || ''; }
     } else {
-      scanPromptLabel.textContent = 'Scan Tracking ID';
-      scanPromptLabel.classList.add('tracking');
-      scanInput.classList.add('tracking');
-      scanInput.placeholder = 'Waiting for Tracking ID scan…';
-      pendingChip.style.display = 'inline-flex';
-      document.getElementById('pendingOrderText').textContent = state.pendingOrderId;
+      scanInput.placeholder = awaitingOrder ? 'Waiting for Order ID scan…' : 'Waiting for Tracking ID scan…';
+      if(awaitingOrder){
+        pendingChip.style.display = 'none';
+      } else {
+        pendingChip.style.display = 'inline-flex';
+        document.getElementById('pendingOrderText').textContent = state.pendingOrderId;
+      }
     }
-    if(!state.thirdParty){ scanInput.placeholder = 'Select Third Party first'; }
+    if(!state.thirdParty){ scanInput.placeholder = 'Select Third Party first'; trackInput.placeholder = 'Select Third Party first'; }
   }
 
   function alreadyInSession(orderId){
@@ -833,6 +906,12 @@
     if(e.key !== 'Enter') return;
     if(!state.thirdParty) return;
     var value = scanInput.value.trim();
+    if(state.scanMode === 'Other'){
+      if(state.scanState !== 'awaiting_order') return;
+      scanInput.value = '';
+      if(value) handleOtherOrder(value);
+      return;
+    }
     scanInput.value = '';
     if(!value) return;
 
@@ -896,6 +975,85 @@
     }
   });
 
+  // ---------- Amazon mode: two boxes ----------
+  function acceptOtherOrder(value){
+    state.pendingOrderId = value;
+    state.scanState = 'awaiting_tracking';
+    updateScanPrompt();
+    refocusInput();
+  }
+
+  function handleOtherOrder(value){
+    var holdMatch = findActiveHold(value);
+    if(holdMatch){ showHoldError(holdMatch, value); return; }
+    if(value.slice(0,2).toUpperCase() === 'JE'){
+      showError('This looks like a regular Order ID (starts with "JE"):\n' + value + '\n\nSwitch to "Regular scan" mode for this one.');
+      return;
+    }
+    if(alreadyInSession(value)){
+      showError('Order ID ' + value + ' was already scanned this session.');
+      return;
+    }
+    if(state.trackedMap[value]){
+      showError('Order ID ' + value + ' already has a tracking ID in the sheet:\n' + state.trackedMap[value]);
+      return;
+    }
+    var sheetLoaded = Object.keys(state.allOrderIds || {}).length > 0;
+    if(sheetLoaded && !state.allOrderIds[value]){
+      showConfirm('Not in sheet:\n' + value + '\n\nThis may be a tracking ID, not an Order ID.\nContinue as Order ID?', function(){
+        acceptOtherOrder(value);
+      });
+      return;
+    }
+    acceptOtherOrder(value);
+  }
+
+  function resetOtherBoxes(){
+    state.pendingOrderId = null;
+    state.scanState = 'awaiting_order';
+    scanInput.value = '';
+    trackInput.value = '';
+    updateScanPrompt();
+    refocusInput();
+  }
+  redoOrderBtn.addEventListener('click', resetOtherBoxes);
+
+  trackInput.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ resetOtherBoxes(); return; }
+    if(e.key !== 'Enter') return;
+    if(!state.thirdParty || state.scanMode !== 'Other') return;
+    var value = trackInput.value.trim();
+    trackInput.value = '';
+    if(!value) return;
+
+    var holdMatch = findActiveHold(value);
+    if(holdMatch){ showHoldError(holdMatch, value); return; }
+    if(alreadyTrackingInSession(value)){
+      showError('Tracking ID ' + value + ' was already scanned this session (for a different Order ID).');
+      return;
+    }
+    if(alreadyTrackingInSheet(value)){
+      showError('Tracking ID ' + value + ' is already assigned to another Order ID in the sheet.');
+      return;
+    }
+    state.sessionPairs.unshift({
+      orderId: state.pendingOrderId || '',     // empty = tracking-only scan
+      trackingId: value,
+      time: new Date().toLocaleString(),
+      status: 'pending',
+      source: 'Other',
+      thirdParty: state.thirdParty
+    });
+    state.pendingOrderId = null;
+    state.scanState = 'awaiting_order';
+    scanInput.value = '';
+    updateScanPrompt();
+    persistSession();
+    renderSessionTable();
+    updateNavCounts();
+    refocusInput();
+  });
+
   document.addEventListener('click', function(e){
     if(e.target.closest && e.target.closest('input, textarea, button, select, .combo, .combo-list')) return;
     if(document.getElementById('view-scan').classList.contains('active') && !errorOverlay.classList.contains('show')){
@@ -928,7 +1086,7 @@
       var tr = document.createElement('tr');
       var src = p.source || 'Regular';
       var changeBtn = p.status === 'pending' ? '<button class="btn ghost change-tp-btn">Change Third Party</button>' : '';
-      tr.innerHTML = '<td>'+escapeHtml(p.orderId)+'</td><td>'+escapeHtml(p.trackingId)+'</td><td class="tp-cell">'+escapeHtml(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(p.orderId || '—')+'</td><td>'+escapeHtml(p.trackingId)+'</td><td class="tp-cell">'+escapeHtml(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
         '<td><span class="badge '+src.toLowerCase()+'">'+src+'</span></td>' +
         '<td><span class="badge '+p.status+'">'+p.status+'</span></td><td>'+changeBtn+'</td>';
       body.appendChild(tr);
@@ -994,7 +1152,7 @@
     visible.forEach(function(p){
       var tr = document.createElement('tr');
       var src = p.source || 'Regular';
-      tr.innerHTML = '<td>'+p.orderId+'</td><td>'+p.trackingId+'</td><td>'+(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(p.orderId || '—')+'</td><td>'+escapeHtml(p.trackingId)+'</td><td>'+escapeHtml(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
         '<td><span class="badge '+src.toLowerCase()+'">'+src+'</span></td>';
       body.appendChild(tr);
     });
@@ -1014,14 +1172,14 @@
       .then(function(res){
         btn.disabled = false; btn.textContent = 'Sync to sheet';
         if(!res.ok){ alert('Sync failed: ' + res.error); return; }
-        var matchedIds = {};
-        res.matched.forEach(function(m){ matchedIds[m.orderId] = true; state.trackedMap[m.orderId] = m.trackingId; });
-        var unmatchedIds = {};
-        res.unmatched.forEach(function(u){ unmatchedIds[u.orderId] = true; });
+        var matchedTrk = {};
+        res.matched.forEach(function(m){ matchedTrk[m.trackingId] = true; state.trackedMap[m.orderId] = m.trackingId; });
+        var unmatchedTrk = {};
+        res.unmatched.forEach(function(u){ unmatchedTrk[u.trackingId] = true; });
         state.sessionPairs.forEach(function(p){
           if(p.status !== 'pending') return;
-          if(matchedIds[p.orderId]) p.status = 'synced';
-          else if(unmatchedIds[p.orderId]) p.status = 'unmatched';
+          if(matchedTrk[p.trackingId]) p.status = 'synced';
+          else if(unmatchedTrk[p.trackingId]) p.status = 'unmatched';
         });
         persistSession();
         renderSessionTable();
@@ -1068,7 +1226,7 @@
       var tr = document.createElement('tr');
       var src = u.source || 'Regular';
       var closeBtn = u.status === 'Open' ? '<button class="btn ghost close-btn" data-row="'+u.row+'">Close</button>' : '';
-      tr.innerHTML = '<td>'+u.orderId+'</td><td>'+(u.trackingId||'—')+'</td><td>'+u.scannedAt+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(u.orderId || '—')+'</td><td>'+escapeHtml(u.trackingId||'—')+'</td><td>'+u.scannedAt+'</td>' +
         '<td><span class="badge '+src.toLowerCase()+'">'+src+'</span></td>' +
         '<td><span class="badge '+u.status.toLowerCase()+'">'+u.status+'</span></td><td>'+closeBtn+'</td>';
       body.appendChild(tr);
