@@ -131,7 +131,7 @@
   }
 
   /* ---- Scan view ---- */
-  .scan-card{padding:32px;position:relative;overflow:hidden;transition:background .2s ease,border-color .2s ease;}
+  .scan-card{padding:32px;min-height:340px;position:relative;overflow:hidden;transition:background .2s ease,border-color .2s ease;}
   .scan-card.other-mode{
     border-color:rgba(124,108,246,0.5);
     background:linear-gradient(180deg, rgba(124,108,246,0.14), var(--glass-strong) 60%);
@@ -169,13 +169,20 @@
 
   .error-overlay{
     position:absolute;inset:0;background:rgba(255,246,246,0.97);backdrop-filter:blur(4px);
-    display:none;align-items:center;justify-content:center;padding:30px;border-radius:var(--radius-lg);
+    display:none;align-items:center;justify-content:center;padding:16px;border-radius:var(--radius-lg);
   }
   .error-overlay.show{display:flex;}
-  .error-box{max-width:420px;text-align:center;border:2px solid var(--error);background:#fff;border-radius:18px;padding:26px 24px;box-shadow:0 14px 30px rgba(220,38,38,.18);}
-  .error-box .ico{font-size:28px;margin-bottom:8px;}
-  .error-box .msg{font-size:14px;color:#7f1d1d;line-height:1.55;font-weight:700;white-space:pre-line;}
-  .error-box .btn{margin-top:16px;}
+  .error-box{
+    width:100%;max-width:440px;max-height:100%;display:flex;flex-direction:column;
+    text-align:center;border:2px solid var(--error);background:#fff;border-radius:18px;padding:20px 24px;
+    box-shadow:0 14px 30px rgba(220,38,38,.18);
+  }
+  .error-box .ico{font-size:26px;margin-bottom:6px;flex-shrink:0;}
+  .error-box .msg{
+    flex:1 1 auto;min-height:0;overflow-y:auto;word-break:break-word;
+    font-size:14px;color:#7f1d1d;line-height:1.55;font-weight:700;white-space:pre-line;
+  }
+  .error-actions{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-shrink:0;}
 
   .session-table-wrap{margin-top:26px;}
   .session-table-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
@@ -194,6 +201,7 @@
   .badge.regular{background:rgba(79,142,247,.14);color:#2563eb;}
   .badge.other{background:rgba(124,108,246,.16);color:#6d28d9;}
   .badge.scanning{background:var(--amber-bg);color:#b45309;}
+  .badge.waiting{background:rgba(124,108,246,.16);color:#6d28d9;}
   .badge.packed{background:rgba(79,142,247,.16);color:#1d4ed8;}
 
   /* ---- Searchable dropdown (combobox) ---- */
@@ -211,6 +219,12 @@
   .combo-item{padding:9px 13px;font-size:13px;cursor:pointer;}
   .combo-item:hover,.combo-item.highlight{background:rgba(124,108,246,.12);}
   .combo-empty{padding:9px 13px;font-size:12px;color:var(--text-faint);}
+  .waiting-pill{display:none;margin-bottom:14px;padding:9px 14px;border-radius:12px;background:var(--amber-bg);color:#b45309;font-size:13px;font-weight:700;cursor:pointer;width:fit-content;}
+  .waiting-pill.show{display:block;}
+  .change-tp-btn{font-size:11px;padding:4px 10px;}
+  .tp-select{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--glass-border);background:#fff;max-width:160px;}
+  .combo input.invalid{border-color:var(--error);box-shadow:0 0 0 3px rgba(220,38,38,0.14);}
+  .scan-hint.invalid{color:var(--error);font-weight:700;}
   .field-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;display:block;margin-bottom:6px;}
   .char-counter{font-size:10px;color:var(--text-faint);text-align:right;margin-top:3px;}
 
@@ -297,6 +311,7 @@
     <div class="stat-line"><span>Tracked</span><span id="statTracked">—</span></div>
     <div class="stat-line"><span>Untracked</span><span id="statUntracked">—</span></div>
     <button class="settings-btn" id="openSettings">⚙ Settings</button>
+    <button class="settings-btn" id="muteBtn" style="margin-top:8px;">🔊 Sound on</button>
   </div>
 </div>
 
@@ -311,6 +326,8 @@
       </div>
       <button class="btn ghost" id="newSessionBtn">New session</button>
     </div>
+
+    <div class="waiting-pill" id="waitingPill"></div>
 
     <div class="glass-card" style="padding:16px 20px;margin-bottom:16px;">
       <label class="field-label">Third Party *</label>
@@ -337,7 +354,7 @@
         <div class="error-box">
           <div class="ico">⚠</div>
           <div class="msg mono" id="errorMsg"></div>
-          <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+          <div class="error-actions">
             <button class="btn ghost" id="dismissError">Dismiss</button>
             <button class="btn primary" id="pulledError" style="display:none;">Pulled — mark resolved</button>
           </div>
@@ -355,7 +372,7 @@
       </div>
       <div class="glass-card glass-table-wrap">
         <table>
-          <thead><tr><th>Order ID</th><th>Tracking ID</th><th>Third Party</th><th>Scanned</th><th>Source</th><th>Status</th></tr></thead>
+          <thead><tr><th>Order ID</th><th>Tracking ID</th><th>Third Party</th><th>Scanned</th><th>Source</th><th>Status</th><th></th></tr></thead>
           <tbody id="sessionTableBody" class="mono"></tbody>
         </table>
         <div class="empty-state" id="sessionEmpty">No scans yet. Scan an Order ID to begin.</div>
@@ -429,9 +446,12 @@
     <div class="view-head">
       <div>
         <h1>Hold List</h1>
-        <div class="sub">Order IDs or Tracking IDs to pull aside. Scanning one stops with an alert.</div>
+        <div class="sub">Order IDs or Tracking IDs to pull aside. Scanning one stops with an alert. Waiting = label scanned, not packed yet.</div>
       </div>
-      <button class="btn ghost" id="refreshHoldBtn">Refresh</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn primary" id="startPackingBtn">Start packing</button>
+        <button class="btn ghost" id="refreshHoldBtn">Refresh</button>
+      </div>
     </div>
 
     <div class="sync-panel glass-card" style="margin-bottom:22px;">
@@ -521,11 +541,14 @@
 (function(){
   'use strict';
 
+  // >>> PASTE YOUR GOOGLE SCRIPT EXEC LINK BETWEEN THE QUOTES <<<
+  var DEFAULT_EXEC_URL = 'https://script.google.com/macros/s/AKfycby0-h_RjAxrpRfSlJi6WHUdoq1D9H2oGQMl4XAijfDFW2L62TIR5SpTn0WXjuFIVaMC/exec';
+  if(DEFAULT_EXEC_URL.indexOf('https://') !== 0){ DEFAULT_EXEC_URL = ''; }
   var LS_URL = 'trackflow_webapp_url';
   var LS_SESSION = 'trackflow_session_pairs';
 
   var state = {
-   webAppUrl: localStorage.getItem(LS_URL) || 'https://script.google.com/macros/s/AKfycby0-h_RjAxrpRfSlJi6WHUdoq1D9H2oGQMl4XAijfDFW2L62TIR5SpTn0WXjuFIVaMC/exec',
+    webAppUrl: localStorage.getItem(LS_URL) || DEFAULT_EXEC_URL,
     sessionPairs: JSON.parse(localStorage.getItem(LS_SESSION) || '[]'),
     trackedMap: {},
     allOrderIds: {},
@@ -556,6 +579,61 @@
   function persistSession(){
     localStorage.setItem(LS_SESSION, JSON.stringify(state.sessionPairs));
   }
+
+  // ---------- Sound (beeps made by the browser, no files) ----------
+  var LS_MUTE = 'trackflow_muted';
+  var muted = localStorage.getItem(LS_MUTE) === '1';
+  var audioCtx = null;
+  function getAudio(){
+    try{
+      if(!audioCtx){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        audioCtx = new AC();
+      }
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }catch(e){ return null; }
+  }
+  function tone(freq, start, dur, type, vol){
+    var ctx = getAudio();
+    if(!ctx) return;
+    try{
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'square';
+      o.frequency.value = freq;
+      o.connect(g); g.connect(ctx.destination);
+      var t = ctx.currentTime + start;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol || 0.25, t + 0.01);
+      g.gain.setValueAtTime(vol || 0.25, t + dur - 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.02);
+    }catch(e){}
+  }
+  function beepError(){            // normal error: long low buzzer (loud)
+    if(muted) return;
+    tone(180, 0, 0.9, 'sawtooth', 0.8);
+  }
+  function beepHold(){             // hold match: two-tone alarm x3 (loud)
+    if(muted) return;
+    for(var i = 0; i < 3; i++){
+      tone(880, i * 0.55, 0.25, 'sawtooth', 0.8);
+      tone(660, i * 0.55 + 0.26, 0.25, 'sawtooth', 0.8);
+    }
+  }
+  var muteBtn = document.getElementById('muteBtn');
+  function renderMute(){ muteBtn.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; }
+  muteBtn.addEventListener('click', function(){
+    muted = !muted;
+    localStorage.setItem(LS_MUTE, muted ? '1' : '0');
+    renderMute();
+    if(!muted) tone(660, 0, 0.12, 'sine', 0.3);
+  });
+  renderMute();
+  ['click','keydown'].forEach(function(ev){
+    document.addEventListener(ev, function(){ getAudio(); }, { once: true });
+  });
 
   var navItems = document.querySelectorAll('.nav-item');
   navItems.forEach(function(item){
@@ -623,6 +701,7 @@
       state.skus = res.skus || [];
       state.thirdParties = res.thirdParties || [];
       setConn(true, 'Connected');
+      syncThirdPartyState();
       updateStats();
       renderReviewView();
       renderSyncView();
@@ -672,14 +751,17 @@
 
   function showError(msg, holdRow){
     errorMsg.textContent = msg;
+    errorMsg.scrollTop = 0;
     errorOverlay.classList.add('show');
     scanInput.disabled = true;
     errorHoldRow = holdRow || null;
     pulledBtn.style.display = errorHoldRow ? 'inline-block' : 'none';
+    if(errorHoldRow) beepHold(); else beepError();
   }
 
   function applyScanLockState(){
     scanInput.disabled = errorOverlay.classList.contains('show') || !state.thirdParty;
+    updateScanPrompt();
   }
 
   function closeErrorAndReset(){
@@ -728,6 +810,7 @@
       pendingChip.style.display = 'inline-flex';
       document.getElementById('pendingOrderText').textContent = state.pendingOrderId;
     }
+    if(!state.thirdParty){ scanInput.placeholder = 'Select Third Party first'; }
   }
 
   function alreadyInSession(orderId){
@@ -813,7 +896,8 @@
     }
   });
 
-  document.addEventListener('click', function(){
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('input, textarea, button, select, .combo, .combo-list')) return;
     if(document.getElementById('view-scan').classList.contains('active') && !errorOverlay.classList.contains('show')){
       refocusInput();
     }
@@ -822,10 +906,15 @@
   document.getElementById('newSessionBtn').addEventListener('click', function(){
     if(!confirm('Start a new session? This clears the scanned list shown here (already-synced rows stay in the sheet).')) return;
     state.sessionPairs = [];
+    refocusInput();
     persistSession();
     renderSessionTable();
     updateNavCounts();
     renderSyncView();
+  });
+
+  document.getElementById('waitingPill').addEventListener('click', function(){
+    document.querySelector('.nav-item[data-view="hold"]').click();
   });
 
   function renderSessionTable(){
@@ -838,10 +927,39 @@
     list.forEach(function(p){
       var tr = document.createElement('tr');
       var src = p.source || 'Regular';
-      tr.innerHTML = '<td>'+p.orderId+'</td><td>'+p.trackingId+'</td><td>'+(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
+      var changeBtn = p.status === 'pending' ? '<button class="btn ghost change-tp-btn">Change Third Party</button>' : '';
+      tr.innerHTML = '<td>'+escapeHtml(p.orderId)+'</td><td>'+escapeHtml(p.trackingId)+'</td><td class="tp-cell">'+escapeHtml(p.thirdParty||'—')+'</td><td>'+p.time+'</td>' +
         '<td><span class="badge '+src.toLowerCase()+'">'+src+'</span></td>' +
-        '<td><span class="badge '+p.status+'">'+p.status+'</span></td>';
+        '<td><span class="badge '+p.status+'">'+p.status+'</span></td><td>'+changeBtn+'</td>';
       body.appendChild(tr);
+      var cb = tr.querySelector('.change-tp-btn');
+      if(cb){
+        cb.addEventListener('click', function(){
+          var cell = tr.querySelector('.tp-cell');
+          var sel = document.createElement('select');
+          sel.className = 'tp-select';
+          state.thirdParties.forEach(function(t){
+            var o = document.createElement('option');
+            o.value = t; o.textContent = t;
+            if(t === p.thirdParty) o.selected = true;
+            sel.appendChild(o);
+          });
+          cell.innerHTML = '';
+          cell.appendChild(sel);
+          cb.style.display = 'none';
+          sel.focus();
+          var done = false;
+          function finish(save){
+            if(done) return; done = true;
+            if(save && sel.value){ p.thirdParty = sel.value; persistSession(); }
+            renderSessionTable();
+            renderSyncView();
+            refocusInput();
+          }
+          sel.addEventListener('change', function(){ finish(true); });
+          sel.addEventListener('blur', function(){ finish(false); });
+        });
+      }
     });
   }
 
@@ -855,7 +973,11 @@
     navReview.textContent = openCount;
     navReview.classList.toggle('alert', openCount > 0);
 
-    var activeHoldCount = state.hold.filter(function(h){ return h.status === 'Active'; }).length;
+    var activeHoldCount = state.hold.filter(function(h){ return h.status === 'Scanning' || h.status === 'Waiting'; }).length;
+    var waitingCount = state.hold.filter(function(h){ return h.status === 'Waiting'; }).length;
+    var pill = document.getElementById('waitingPill');
+    pill.textContent = waitingCount + (waitingCount === 1 ? ' label waiting for its parcel' : ' labels waiting for parcels') + ' — open Hold List';
+    pill.classList.toggle('show', waitingCount > 0);
     var navHold = document.getElementById('navHoldCount');
     navHold.textContent = activeHoldCount;
     navHold.classList.toggle('alert', activeHoldCount > 0);
@@ -881,8 +1003,11 @@
 
   document.getElementById('syncNowBtn').addEventListener('click', function(){
     if(!state.webAppUrl){ alert('Connect your sheet in Settings first.'); return; }
-    var pending = state.sessionPairs.filter(function(p){ return p.status === 'pending'; });
-    if(pending.length === 0){ return; }
+    var allPending = state.sessionPairs.filter(function(p){ return p.status === 'pending'; });
+    if(allPending.length === 0){ return; }
+    var pending = allPending.filter(function(p){ return p.thirdParty; });
+    var skipped = allPending.length - pending.length;
+    if(pending.length === 0){ alert('These pairs have no Third Party, so they cannot be synced.'); return; }
     var btn = document.getElementById('syncNowBtn');
     btn.disabled = true; btn.textContent = 'Syncing…';
     apiPost({ action: 'sync', pairs: pending.map(function(p){ return {orderId:p.orderId, trackingId:p.trackingId, source:p.source||'Regular', thirdParty:p.thirdParty||''}; }) })
@@ -905,7 +1030,7 @@
         updateNavCounts();
         var banner = document.getElementById('syncResult');
         banner.className = 'result-banner show ok';
-        banner.textContent = res.matched.length + ' synced to sheet · ' + res.unmatched.length + ' sent to Resolve Queue';
+        banner.textContent = res.matched.length + ' synced to sheet · ' + res.unmatched.length + ' sent to Resolve Queue' + (skipped ? (' · ' + skipped + ' skipped (no Third Party)') : '');
         loadSnapshot();
       })
       .catch(function(err){
@@ -975,6 +1100,26 @@
   });
   document.getElementById('refreshHoldBtn').addEventListener('click', loadSnapshot);
 
+  document.getElementById('startPackingBtn').addEventListener('click', function(){
+    if(!state.webAppUrl){ alert('Connect your sheet in Settings first.'); return; }
+    var waiting = state.hold.filter(function(h){ return h.status === 'Waiting'; }).length;
+    if(waiting === 0){ alert('No labels are Waiting.'); return; }
+    if(!confirm('Move ' + waiting + (waiting === 1 ? ' label' : ' labels') + ' from Waiting to Packed?')) return;
+    var btn = document.getElementById('startPackingBtn');
+    btn.disabled = true; btn.textContent = 'Working…';
+    apiPost({ action: 'startPacking' }).then(function(res){
+      btn.disabled = false; btn.textContent = 'Start packing';
+      if(!res.ok){ alert('Could not update: ' + res.error); return; }
+      state.hold.forEach(function(h){ if(h.status === 'Waiting') h.status = 'Packed'; });
+      renderHoldView();
+      updateNavCounts();
+      loadSnapshot();
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Start packing';
+      alert('Could not update — check your connection.');
+    });
+  });
+
   document.getElementById('addHoldBtn').addEventListener('click', function(){
     if(!state.webAppUrl){ alert('Connect your sheet in Settings first.'); return; }
     var orderInput = document.getElementById('holdOrderInput');
@@ -1032,7 +1177,7 @@
     var term = state.search.hold;
     var list = state.hold.filter(function(h){
       if(!matchesSearch(term, h.orderId, h.trackingId)) return false;
-      if(holdFilter === 'active') return h.status === 'Scanning' || h.status === 'Packed';
+      if(holdFilter === 'active') return h.status === 'Scanning' || h.status === 'Waiting' || h.status === 'Packed';
       if(holdFilter === 'resolved') return h.status === 'Resolved';
       return true;
     });
@@ -1040,13 +1185,13 @@
     list.forEach(function(h){
       var tr = document.createElement('tr');
       var resolveBtn = h.status !== 'Resolved' ? '<button class="btn ghost resolve-hold-btn" data-row="'+h.row+'">Resolve</button>' : '';
-      var statusClass = h.status === 'Resolved' ? 'closed' : h.status.toLowerCase(); // scanning | packed | closed
+      var statusClass = h.status === 'Resolved' ? 'closed' : h.status.toLowerCase(); // scanning | waiting | packed | closed
       var noteFull = escapeHtml(h.note || '');
       var noteFlat = (h.note || '').replace(/\s*\n\s*/g, ' ');
       var noteShort = noteFlat.length > 40 ? escapeHtml(noteFlat.slice(0,40)) + '…' : (noteFlat ? escapeHtml(noteFlat) : '—');
-      tr.innerHTML = '<td>'+(h.orderId||'—')+'</td><td>'+(h.trackingId||'—')+'</td><td>'+(h.sku||'—')+'</td><td>'+(h.quantity||'—')+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(h.orderId||'—')+'</td><td>'+escapeHtml(h.trackingId||'—')+'</td><td>'+escapeHtml(h.sku||'—')+'</td><td>'+escapeHtml(h.quantity||'—')+'</td>' +
         '<td class="note-cell" title="'+noteFull+'">'+noteShort+'</td>' +
-        '<td>'+(h.courier||'—')+'</td><td>'+(h.name||'—')+'</td><td>'+h.addedAt+'</td>' +
+        '<td>'+escapeHtml(h.courier||'—')+'</td><td>'+escapeHtml(h.name||'—')+'</td><td>'+h.addedAt+'</td>' +
         '<td><span class="badge '+statusClass+'">'+h.status+'</span></td><td>'+resolveBtn+'</td>';
       body.appendChild(tr);
     });
@@ -1086,7 +1231,7 @@
   // ---------- Searchable dropdown (combo) ----------
   // Wires a text <input> + a floating <div> list to an options array.
   // Selecting an item (click or Enter) locks the input to that exact value.
-  function setupCombo(inputId, listId, getOptions){
+  function setupCombo(inputId, listId, getOptions, onSelect){
     var input = document.getElementById(inputId);
     var list = document.getElementById(listId);
     var highlighted = -1;
@@ -1104,6 +1249,7 @@
             e.preventDefault();
             input.value = opt;
             list.classList.remove('show');
+            if(onSelect) onSelect();
           });
           list.appendChild(div);
         });
@@ -1129,24 +1275,43 @@
       if(e.key === 'ArrowDown'){ e.preventDefault(); highlighted = Math.min(highlighted+1, items.length-1); input.dispatchEvent(new Event('input')); }
       else if(e.key === 'ArrowUp'){ e.preventDefault(); highlighted = Math.max(highlighted-1, 0); input.dispatchEvent(new Event('input')); }
       else if(e.key === 'Enter'){
-        if(highlighted >= 0 && items[highlighted]){ e.preventDefault(); input.value = items[highlighted].textContent; list.classList.remove('show'); }
+        if(highlighted >= 0 && items[highlighted]){ e.preventDefault(); input.value = items[highlighted].textContent; list.classList.remove('show'); if(onSelect) onSelect(); }
       }
     });
   }
 
-  setupCombo('thirdPartyInput', 'thirdPartyList', function(){ return state.thirdParties; });
+  var thirdPartyInputEl = document.getElementById('thirdPartyInput');
   var thirdPartyHint = document.getElementById('thirdPartyHint');
   function syncThirdPartyState(){
-    var val = document.getElementById('thirdPartyInput').value.trim();
-    var valid = state.thirdParties.length === 0 || state.thirdParties.indexOf(val) !== -1;
-    state.thirdParty = (val && valid) ? val : '';
-    thirdPartyHint.textContent = state.thirdParty
-      ? ('Scanning under: ' + state.thirdParty)
-      : 'Select a Third Party to start scanning.';
+    var val = thirdPartyInputEl.value.trim();
+    var match = '';
+    if(val){
+      var low = val.toLowerCase();
+      for(var i = 0; i < state.thirdParties.length; i++){
+        if(state.thirdParties[i].toLowerCase() === low){ match = state.thirdParties[i]; break; }
+      }
+    }
+    state.thirdParty = match;
+    var msg, bad = true;
+    if(match){ msg = 'Scanning under: ' + match; bad = false; }
+    else if(state.thirdParties.length === 0){
+      msg = !state.webAppUrl ? 'Connect your sheet in Settings first.'
+          : (state.connected ? 'No Third Party list found. Add names in the Dropdown tab (column A), then refresh.'
+                             : 'Sheet not connected yet. Check Settings.');
+    }
+    else if(val){ msg = 'Pick a Third Party from the list.'; }
+    else { msg = 'Select a Third Party first'; }
+    thirdPartyHint.textContent = msg;
+    thirdPartyHint.classList.toggle('invalid', bad);
+    thirdPartyInputEl.classList.toggle('invalid', !match);
     applyScanLockState();
   }
-  document.getElementById('thirdPartyInput').addEventListener('input', syncThirdPartyState);
-  document.getElementById('thirdPartyInput').addEventListener('blur', function(){ setTimeout(syncThirdPartyState, 160); });
+  setupCombo('thirdPartyInput', 'thirdPartyList', function(){ return state.thirdParties; }, function(){
+    syncThirdPartyState();
+    refocusInput();
+  });
+  thirdPartyInputEl.addEventListener('input', syncThirdPartyState);
+  thirdPartyInputEl.addEventListener('blur', function(){ setTimeout(syncThirdPartyState, 160); });
 
   setupCombo('holdSkuInput', 'holdSkuList', function(){ return state.skus; });
   setupCombo('holdCourierInput', 'holdCourierList', function(){ return state.couriers; });
@@ -1156,7 +1321,7 @@
   renderSessionTable();
   renderHoldView();
   updateNavCounts();
-  applyScanLockState();
+  syncThirdPartyState();
   if(state.webAppUrl){ loadSnapshot(); } else { setConn(false, 'No sheet connected'); }
   refocusInput();
 })();
