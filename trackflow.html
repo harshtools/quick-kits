@@ -461,7 +461,7 @@
 
     <div class="glass-card glass-table-wrap">
       <table>
-        <thead><tr><th>Order ID</th><th>Tracking ID</th><th>Scanned</th><th>Source</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Order ID</th><th>Tracking ID</th><th>Third Party</th><th>Scanned</th><th>Source</th><th>Status</th><th></th></tr></thead>
         <tbody id="reviewTableBody" class="mono"></tbody>
       </table>
       <div class="empty-state" id="reviewEmpty">Nothing to review.</div>
@@ -1261,7 +1261,7 @@
       var tr = document.createElement('tr');
       var src = u.source || 'Regular';
       var closeBtn = u.status === 'Open' ? '<button class="btn ghost close-btn" data-row="'+u.row+'">Close</button>' : '';
-      tr.innerHTML = '<td>'+escapeHtml(u.orderId || '—')+'</td><td>'+escapeHtml(u.trackingId||'—')+'</td><td>'+u.scannedAt+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(u.orderId || '—')+'</td><td>'+escapeHtml(u.trackingId||'—')+'</td><td>'+escapeHtml(u.thirdParty||'—')+'</td><td>'+u.scannedAt+'</td>' +
         '<td><span class="badge '+src.toLowerCase()+'">'+src+'</span></td>' +
         '<td><span class="badge '+u.status.toLowerCase()+'">'+u.status+'</span></td><td>'+closeBtn+'</td>';
       body.appendChild(tr);
