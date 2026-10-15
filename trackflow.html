@@ -286,6 +286,137 @@
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
 
   ::placeholder{color:var(--text-faint);}
+  /* ---------- Mobile ---------- */
+@media (max-width: 768px){
+  body{
+    flex-direction:column;
+    gap:14px;
+    padding:12px;
+    min-height:100dvh;
+  }
+
+  /* Sidebar -> top header */
+  .sidebar{
+    width:100%;
+    height:auto;
+    position:static;
+    padding:14px;
+    border-radius:20px;
+  }
+  .brand{
+    padding:0 2px 10px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .brand .name{font-size:20px;}
+
+  /* Nav becomes a horizontal 4-tab row */
+  .nav{
+    flex-direction:row;
+    gap:6px;
+    flex:none;
+  }
+  .nav-item{
+    flex:1;
+    flex-direction:column;
+    justify-content:center;
+    gap:4px;
+    padding:8px 4px;
+    font-size:11px;
+    text-align:center;
+    min-width:0;
+  }
+  .nav-item .dot{display:none;}
+  .nav-item .label{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .nav-item .num{font-size:10px;padding:1px 7px;}
+
+  /* Sidebar footer -> compact wrapped row */
+  .sidebar-foot{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:6px 12px;
+    margin-top:10px;
+    padding-top:10px;
+  }
+  .conn{margin-bottom:0;}
+  .stat-line{margin-top:0;gap:5px;}
+  .settings-btn{
+    width:auto;
+    margin-top:0 !important;
+    padding:7px 12px;
+  }
+
+  /* Main */
+  .main{max-width:100%;width:100%;min-width:0;}
+  .view-head{flex-wrap:wrap;margin-bottom:16px;}
+  .view-head h1{font-size:22px;}
+  .view-head > .btn{align-self:flex-start;}
+
+  /* Scan card */
+  .scan-card{padding:16px;min-height:220px;}
+  .scan-top{padding-right:0;flex-wrap:wrap;}
+  .mode-flag{position:static;margin-bottom:8px;}
+  .scan-card.other-mode .mode-flag{display:inline-block;}
+  .scan-input,
+  .scan-card.other-mode .scan-input{
+    font-size:16px;          /* stops iOS zoom-on-focus */
+    padding:12px 14px;
+  }
+  .scan-card.other-mode .scan-row{grid-template-columns:1fr;}
+  .track-only-btn{margin-left:0;}
+  .toggle-row{flex-wrap:wrap;}
+
+  /* Error overlay */
+  .error-overlay{padding:10px;}
+  .error-box{padding:16px;}
+  .error-actions{flex-wrap:wrap;}
+  .error-actions .btn{flex:1;}
+
+  /* Inputs: 16px prevents iOS auto-zoom */
+  .combo input,
+  .search-input,
+  .modal input[type=text],
+  #view-hold input,
+  #view-hold textarea{font-size:16px !important;}
+  .search-input{max-width:100%;}
+
+  /* Hold form: stack the Note + button row (inline grid style) */
+  #view-hold .sync-panel > div[style*="auto;"]{
+    grid-template-columns:1fr !important;
+  }
+  #view-hold .sync-panel > div[style*="auto;"] .btn{width:100%;}
+
+  /* Sync */
+  .stat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:16px;}
+  .stat-card{padding:14px 18px;}
+  .sync-panel{padding:16px;}
+  .sync-panel .row .btn{width:100%;}
+
+  /* Tables scroll sideways instead of breaking layout */
+  .glass-table-wrap{padding:6px;}
+  table{
+    display:block;
+    max-width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    white-space:nowrap;
+  }
+  thead th, tbody td{padding:9px 10px;}
+
+  /* Modal */
+  .modal{padding:20px;width:92vw;}
+  .modal-actions .btn{flex:1;}
+}
+
+/* Small phones */
+@media (max-width: 400px){
+  body{padding:8px;}
+  .nav-item{font-size:10px;}
+  .view-head h1{font-size:20px;}
+  .btn{padding:9px 14px;}
+}
 </style>
 </head>
 <body>
