@@ -286,6 +286,12 @@
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
 
   ::placeholder{color:var(--text-faint);}
+  /* Keep tables inside their cards */
+.glass-table-wrap{overflow-x:auto;}
+.glass-table-wrap table{min-width:100%;}
+.resolve-hold-btn,
+.close-btn{white-space:nowrap;padding:7px 14px;}
+.added-cell{white-space:nowrap;}
   /* ---------- Mobile ---------- */
 @media (max-width: 768px){
   body{
@@ -732,6 +738,11 @@
   function escapeHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  function fmtDate(s){
+  var d = new Date(s);
+  if(isNaN(d)) return s || '—';
+  return d.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+} 
   function matchesSearch(term, orderId, trackingId){
     if(!term) return true;
     term = term.toLowerCase();
@@ -1515,7 +1526,7 @@
       var noteShort = noteFlat.length > 40 ? escapeHtml(noteFlat.slice(0,40)) + '…' : (noteFlat ? escapeHtml(noteFlat) : '—');
       tr.innerHTML = '<td>'+escapeHtml(h.orderId||'—')+'</td><td>'+escapeHtml(h.trackingId||'—')+'</td><td>'+escapeHtml(h.sku||'—')+'</td><td>'+escapeHtml(h.quantity||'—')+'</td>' +
         '<td class="note-cell" title="'+noteFull+'">'+noteShort+'</td>' +
-        '<td>'+escapeHtml(h.courier||'—')+'</td><td>'+escapeHtml(h.name||'—')+'</td><td>'+h.addedAt+'</td>' +
+        '<td>'+escapeHtml(h.courier||'—')+'</td><td>'+escapeHtml(h.name||'—')+'</td><td class="added-cell">'+escapeHtml(fmtDate(h.addedAt))+'</td>
         '<td><span class="badge '+statusClass+'">'+h.status+'</span></td><td>'+resolveBtn+'</td>';
       body.appendChild(tr);
     });
