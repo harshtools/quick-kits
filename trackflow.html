@@ -631,17 +631,17 @@
           <input type="text" id="holdTrackingInput" class="mono" placeholder="Required" autocomplete="off"
             style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;">
         </div>
+               <div>
+          <label class="field-label">Quantity *</label>
+          <input type="number" id="holdQuantityInput" min="1" step="1" placeholder="Qty" class="mono"
+            style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;">
+        </div>
         <div>
           <label class="field-label">SKU *</label>
           <div class="combo">
             <input type="text" id="holdSkuInput" class="mono" placeholder="Type to search…" autocomplete="off">
             <div class="combo-list" id="holdSkuList"></div>
           </div>
-        </div>
-        <div>
-          <label class="field-label">Quantity *</label>
-          <input type="number" id="holdQuantityInput" min="1" step="1" placeholder="Qty" class="mono"
-            style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
@@ -682,7 +682,7 @@
 
     <div class="glass-card glass-table-wrap">
       <table>
-        <thead><tr><th>Order ID</th><th>Tracking ID</th><th>SKU</th><th>Qty</th><th>Note</th><th>Courier</th><th>Name</th><th>Added</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Order ID</th><th>Tracking ID</th><th>Qty</th><th>SKU</th><th>Note</th><th>Courier</th><th>Name</th><th>Added</th><th>Status</th><th></th></tr></thead>
         <tbody id="holdTableBody" class="mono"></tbody>
       </table>
       <div class="empty-state" id="holdEmpty">Nothing on hold.</div>
@@ -1525,7 +1525,7 @@
       var noteFull = escapeHtml(h.note || '');
       var noteFlat = (h.note || '').replace(/\s*\n\s*/g, ' ');
       var noteShort = noteFlat.length > 40 ? escapeHtml(noteFlat.slice(0,40)) + '…' : (noteFlat ? escapeHtml(noteFlat) : '—');
-      tr.innerHTML = '<td>'+escapeHtml(h.orderId||'—')+'</td><td>'+escapeHtml(h.trackingId||'—')+'</td><td>'+escapeHtml(h.sku||'—')+'</td><td>'+escapeHtml(h.quantity||'—')+'</td>' +
+      tr.innerHTML = '<td>'+escapeHtml(h.orderId||'—')+'</td><td>'+escapeHtml(h.trackingId||'—')+'</td><td>'+escapeHtml(h.quantity||'—')+'</td><td>'+escapeHtml(h.sku||'—')+'</td>' +
         '<td class="note-cell" title="'+noteFull+'">'+noteShort+'</td>' +
             '<td>'+escapeHtml(h.courier||'—')+'</td><td>'+escapeHtml(h.name||'—')+'</td><td class="added-cell">'+escapeHtml(fmtDate(h.addedAt))+'</td>' +
         '<td><span class="badge '+statusClass+'">'+h.status+'</span></td><td>'+resolveBtn+'</td>';
