@@ -291,7 +291,11 @@
 .glass-table-wrap{overflow-x:auto;}
 .glass-table-wrap table{min-width:100%;}
 .resolve-hold-btn,
+.delete-hold-btn,
 .close-btn{white-space:nowrap;padding:7px 14px;}
+.delete-hold-btn{color:var(--error);background:transparent;border:none;box-shadow:none;backdrop-filter:none;margin-left:6px;padding:6px;vertical-align:middle;line-height:0;}
+.delete-hold-btn:hover{background:var(--error-bg);box-shadow:none;}
+.delete-hold-btn svg{display:block;}
 .added-cell{white-space:nowrap;}
   /* ---------- Mobile ---------- */
 @media (max-width: 768px){
@@ -631,7 +635,7 @@
           <input type="text" id="holdTrackingInput" class="mono" placeholder="Required" autocomplete="off"
             style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;">
         </div>
-               <div>
+        <div>
           <label class="field-label">Quantity *</label>
           <input type="number" id="holdQuantityInput" min="1" step="1" placeholder="Qty" class="mono"
             style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;">
@@ -639,10 +643,14 @@
         <div>
           <label class="field-label">SKU *</label>
           <div class="combo">
-            <input type="text" id="holdSkuInput" class="mono" placeholder="Type to search…" autocomplete="off">
+            <input type="text" id="holdSkuInput" class="mono" placeholder="Pick SKU, press Enter…" autocomplete="off">
             <div class="combo-list" id="holdSkuList"></div>
           </div>
         </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div class="scan-hint" id="holdSkuStatus" style="margin:0;"></div>
+        <div id="holdSkuChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
         <div>
@@ -1460,7 +1468,6 @@
     if(!state.webAppUrl){ alert('Connect your sheet in Settings first.'); return; }
     var orderInput = document.getElementById('holdOrderInput');
     var trackingInput = document.getElementById('holdTrackingInput');
-    var skuInput = document.getElementById('holdSkuInput');
     var quantityInput = document.getElementById('holdQuantityInput');
     var noteInput = document.getElementById('holdNoteInput');
     var courierInput = document.getElementById('holdCourierInput');
@@ -1468,7 +1475,6 @@
 
     var orderId = orderInput.value.trim();
     var trackingId = trackingInput.value.trim();
-    var sku = skuInput.value.trim();
     var quantity = quantityInput.value.trim();
     var note = noteInput.value.trim();
     var courier = courierInput.value.trim();
@@ -1476,9 +1482,15 @@
 
     if(!orderId){ alert('Order ID is required.'); orderInput.focus(); return; }
     if(!trackingId){ alert('Tracking ID is required.'); trackingInput.focus(); return; }
-    if(!sku){ alert('SKU is required.'); skuInput.focus(); return; }
-    if(state.skus.length && state.skus.indexOf(sku) === -1){ alert('Pick a SKU from the list.'); skuInput.focus(); return; }
-    if(!quantity || Number(quantity) <= 0){ alert('Quantity is required.'); quantityInput.focus(); return; }
+    if(!quantity || Number(quantity) <= 0 || Number(quantity) % 1 !== 0){ alert('Quantity is required (whole number).'); quantityInput.focus(); return; }
+    var qty = Number(quantity);
+    if(chosenSkus.length !== qty){
+      alert('Quantity is ' + qty + ', but ' + chosenSkus.length + ' SKU(s) added. Add exactly ' + qty + ' SKUs.');
+      if(!holdSkuInputEl.disabled) holdSkuInputEl.focus();
+      return;
+    }
+    var sku = chosenSkus.join(', ');
+
     if(!note){ alert('Note is required.'); noteInput.focus(); return; }
     if(!courier){ alert('Courier is required.'); courierInput.focus(); return; }
     if(state.couriers.length && state.couriers.indexOf(courier) === -1){ alert('Pick a Courier from the list.'); courierInput.focus(); return; }
@@ -1493,11 +1505,12 @@
         if(!res.ok){ alert('Could not add: ' + res.error); return; }
         orderInput.value = '';
         trackingInput.value = '';
-        skuInput.value = '';
         quantityInput.value = '';
         noteInput.value = '';
         courierInput.value = '';
         nameInput.value = '';
+        chosenSkus = [];
+        renderSkuChips();
         orderInput.focus();
         loadSnapshot();
       }).catch(function(){
@@ -1505,6 +1518,8 @@
         alert('Could not add — check your connection.');
       });
   });
+
+  var TRASH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
 
   function renderHoldView(){
     var body = document.getElementById('holdTableBody');
@@ -1528,8 +1543,26 @@
       tr.innerHTML = '<td>'+escapeHtml(h.orderId||'—')+'</td><td>'+escapeHtml(h.trackingId||'—')+'</td><td>'+escapeHtml(h.quantity||'—')+'</td><td>'+escapeHtml(h.sku||'—')+'</td>' +
         '<td class="note-cell" title="'+noteFull+'">'+noteShort+'</td>' +
             '<td>'+escapeHtml(h.courier||'—')+'</td><td>'+escapeHtml(h.name||'—')+'</td><td class="added-cell">'+escapeHtml(fmtDate(h.addedAt))+'</td>' +
-        '<td><span class="badge '+statusClass+'">'+h.status+'</span></td><td>'+resolveBtn+'</td>';
+        '<td><span class="badge '+statusClass+'">'+h.status+'</span></td><td style="white-space:nowrap;">'+resolveBtn+'<button class="btn ghost delete-hold-btn" data-row="'+h.row+'" title="Delete" aria-label="Delete">'+TRASH_SVG+'</button></td>';
       body.appendChild(tr);
+    });
+    body.querySelectorAll('.delete-hold-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var row = parseInt(btn.dataset.row, 10);
+        if(!confirm('Delete this hold row permanently? This cannot be undone.')) return;
+        var target = state.hold.find(function(h){ return h.row === row; }) || {};
+        btn.disabled = true; btn.textContent = '…';
+        apiPost({ action: 'deleteHold', row: row, orderId: target.orderId || '', trackingId: target.trackingId || '' }).then(function(res){
+          if(!res.ok){ alert('Could not delete: ' + res.error); btn.disabled = false; btn.innerHTML = TRASH_SVG; return; }
+          state.hold = state.hold.filter(function(h){ return h.row !== row; });
+          renderHoldView();
+          updateNavCounts();
+          loadSnapshot(); // row numbers shift after a delete, so reload from the sheet
+        }).catch(function(){
+          alert('Could not delete — check your connection.');
+          btn.disabled = false; btn.innerHTML = TRASH_SVG;
+        });
+      });
     });
     body.querySelectorAll('.resolve-hold-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -1649,7 +1682,66 @@
   thirdPartyInputEl.addEventListener('input', syncThirdPartyState);
   thirdPartyInputEl.addEventListener('blur', function(){ setTimeout(syncThirdPartyState, 160); });
 
-  setupCombo('holdSkuInput', 'holdSkuList', function(){ return state.skus; });
+  // ---------- Hold List: multi SKU (number of SKUs must equal Quantity) ----------
+  var holdQuantityEl = document.getElementById('holdQuantityInput');
+  var holdSkuInputEl = document.getElementById('holdSkuInput');
+  var holdSkuChips = document.getElementById('holdSkuChips');
+  var holdSkuStatus = document.getElementById('holdSkuStatus');
+  var chosenSkus = [];
+
+  function getHoldQty(){
+    var q = parseInt(holdQuantityEl.value, 10);
+    return (q && q > 0) ? q : 0;
+  }
+
+  function renderSkuChips(){
+    var qty = getHoldQty();
+    holdSkuChips.innerHTML = '';
+    chosenSkus.forEach(function(s, i){
+      var chip = document.createElement('span');
+      chip.className = 'mono';
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:20px;font-size:12px;background:rgba(124,108,246,.16);color:#6d28d9;font-weight:600;';
+      chip.appendChild(document.createTextNode(s));
+      var x = document.createElement('span');
+      x.textContent = '✕';
+      x.style.cssText = 'cursor:pointer;font-weight:700;';
+      x.addEventListener('click', function(){
+        chosenSkus.splice(i, 1);
+        renderSkuChips();
+        holdSkuInputEl.focus();
+      });
+      chip.appendChild(x);
+      holdSkuChips.appendChild(chip);
+    });
+    var ok = qty > 0 && chosenSkus.length === qty;
+    holdSkuStatus.textContent = qty
+      ? ('SKUs added: ' + chosenSkus.length + ' / ' + qty + (ok ? ' ✓' : ''))
+      : 'Enter Quantity first, then add that many SKUs.';
+    holdSkuStatus.classList.toggle('invalid', !ok);
+    holdSkuInputEl.disabled = qty > 0 && chosenSkus.length >= qty;
+    holdSkuInputEl.placeholder = holdSkuInputEl.disabled ? 'All SKUs added' : 'Pick SKU, press Enter…';
+  }
+
+  function addChosenSku(){
+    var v = holdSkuInputEl.value.trim();
+    if(!v) return;
+    var qty = getHoldQty();
+    if(!qty){ alert('Enter Quantity first.'); holdQuantityEl.focus(); return; }
+    if(chosenSkus.length >= qty){ alert('Quantity is ' + qty + ', so only ' + qty + ' SKUs can be added.'); holdSkuInputEl.value = ''; return; }
+    if(state.skus.length && state.skus.indexOf(v) === -1){ alert('Pick a SKU from the list.'); return; }
+    chosenSkus.push(v);
+    holdSkuInputEl.value = '';
+    renderSkuChips();
+    if(!holdSkuInputEl.disabled) holdSkuInputEl.focus();
+  }
+
+  setupCombo('holdSkuInput', 'holdSkuList', function(){ return state.skus; }, addChosenSku);
+  holdSkuInputEl.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); addChosenSku(); }
+  });
+  holdQuantityEl.addEventListener('input', renderSkuChips);
+  renderSkuChips();
+
   setupCombo('holdCourierInput', 'holdCourierList', function(){ return state.couriers; });
   setupCombo('holdNameInput', 'holdNameList', function(){ return state.names; });
 
